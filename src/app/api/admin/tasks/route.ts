@@ -50,3 +50,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!authorize(req, "admin")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const url = new URL(req.url);
+    const taskId = url.searchParams.get("taskId");
+    if (!taskId) {
+      return NextResponse.json(
+        { message: "Task ID is required" },
+        { status: 400 }
+      );
+    }
+    await db.collection("tasks").deleteOne({ _id: new ObjectId(taskId) });
+    return NextResponse.json({ message: "Task deleted" }, { status: 200 });
+  } catch (error) {
+    console.error("❌ Error deleting task:", error);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}

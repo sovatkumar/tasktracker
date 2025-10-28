@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import clientPromise from "../../lib/mongodb";
+import { authorize } from "@/app/lib/auth";
+import { ObjectId } from "mongodb";
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +47,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!authorize(req, "admin")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const client = await clientPromise;
     const db = client.db();
@@ -54,6 +59,88 @@ export async function GET() {
     return NextResponse.json(users);
   } catch (error) {
     console.error(error);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!authorize(req, "admin")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json(
+        { message: "User ID is required" },
+        { status: 400 }
+      );
+    }
+    const userDeleteResult = await db
+      .collection("users")
+      .deleteOne({ _id: new ObjectId(userId) });
+
+    if (userDeleteResult.deletedCount === 0) {
+      return NextResponse.json(
+        { message: "User not found" },
+        { status: 404 }
+      );
+    }
+    const taskDeleteResult = await db
+      .collection("tasks")
+      .deleteMany({ userId: userId });
+
+    return NextResponse.json(
+      { message: "User and related tasks deleted successfully" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("❌ Error deleting user:", error);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  if (!authorize(req, "admin")) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { userId, name, email, role } = body;
+
+    if (!userId || !name || !email || !role) {
+      return NextResponse.json(
+        { message: "name, email, and role are required" },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+    const existingUser = await db.collection("users").findOne({
+      email,
+      _id: { $ne: new ObjectId(userId) }
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { message: "Email already exists. Please use a different email." },
+        { status: 409 }
+      );
+    }
+    await db.collection("users").updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { name, email, role } }
+    );
+
+    return NextResponse.json({ message: "User updated successfully" }, { status: 200 });
+  } catch (error) {
+    console.error("❌ Error updating user:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
