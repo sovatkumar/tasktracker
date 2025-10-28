@@ -66,7 +66,6 @@ export const UserList = () => {
         toast.success("✅ User updated successfully!");
         setIsModalOpen(false);
       } else if (res.status === 409) {
-        // Email already exists
         toast.error(
           "❌ This email already exists. Please use a different one."
         );
@@ -213,7 +212,7 @@ export const UserList = () => {
                 onChange={(e) =>
                   setEditedData((prev) => ({ ...prev, role: e.target.value }))
                 }
-                className="border p-2 rounded-md dark:text-white"
+                className="border p-2 rounded-md dark:text-white dark:bg-black"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>

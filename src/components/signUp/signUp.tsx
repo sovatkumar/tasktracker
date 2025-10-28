@@ -22,7 +22,7 @@ export default function SignupForm() {
   } = useForm<SignupFormInputs>();
 
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 👈 password visibility toggle
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = async (data: SignupFormInputs) => {
     setLoading(true);
@@ -84,7 +84,9 @@ export default function SignupForm() {
             </button>
           </div>
           {errors.password && (
-            <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+            <p className="text-red-500 text-sm mt-1">
+              {errors.password.message}
+            </p>
           )}
         </div>
         <div>

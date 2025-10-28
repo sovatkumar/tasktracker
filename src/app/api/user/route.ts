@@ -85,10 +85,7 @@ export async function DELETE(req: NextRequest) {
       .deleteOne({ _id: new ObjectId(userId) });
 
     if (userDeleteResult.deletedCount === 0) {
-      return NextResponse.json(
-        { message: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
     const taskDeleteResult = await db
       .collection("tasks")
@@ -124,7 +121,7 @@ export async function PUT(req: NextRequest) {
     const db = client.db();
     const existingUser = await db.collection("users").findOne({
       email,
-      _id: { $ne: new ObjectId(userId) }
+      _id: { $ne: new ObjectId(userId) },
     });
 
     if (existingUser) {
@@ -133,12 +130,17 @@ export async function PUT(req: NextRequest) {
         { status: 409 }
       );
     }
-    await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { name, email, role } }
-    );
+    await db
+      .collection("users")
+      .updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { name, email, role } }
+      );
 
-    return NextResponse.json({ message: "User updated successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "User updated successfully" },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("❌ Error updating user:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });

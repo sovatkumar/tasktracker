@@ -20,7 +20,7 @@ export default function LoginForm() {
   } = useForm<LoginFormInputs>();
 
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 👈 toggle state
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const onSubmit = async (data: LoginFormInputs) => {
@@ -54,9 +54,7 @@ export default function LoginForm() {
             className="w-full p-2 border rounded dark:text-white"
           />
           {errors.email && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.email.message}
-            </p>
+            <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
           )}
         </div>
         <div className="relative">
@@ -72,11 +70,7 @@ export default function LoginForm() {
             className="absolute right-3 top-9 cursor-pointer text-gray-600 hover:text-gray-800"
             onClick={() => setShowPassword((prev) => !prev)}
           >
-            {showPassword ? (
-              <EyeOff size={22} />
-            ) : (
-              <Eye size={22} />
-            )}
+            {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
           </span>
           {errors.password && (
             <p className="text-red-500 text-sm mt-1">

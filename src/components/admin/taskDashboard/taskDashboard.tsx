@@ -13,8 +13,8 @@ type Task = {
   userId: string;
   userName?: string;
   totalTime: number;
-  status: string; // <-- added
-  lastStart?: string | null; // <-- added
+  status: string;
+  lastStart?: string | null;
   startDate?: string;
   endDate?: string;
 };
@@ -29,8 +29,6 @@ export default function AdminDashboard() {
   ]);
   const [timerMap, setTimerMap] = useState<Record<string, number>>({});
   const [startDate, endDate] = dateRange;
-
-  // Fetch all tasks
   const fetchTasks = async () => {
     try {
       const token = Cookies.get("token");
@@ -40,8 +38,6 @@ export default function AdminDashboard() {
 
       const allTasks: Task[] = res.data.tasks || [];
       setTasks(allTasks);
-
-      // Unique users for dropdown
       const uniqueUsers = Array.from(
         new Map(
           allTasks.map((t) => [
@@ -59,8 +55,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchTasks();
   }, []);
-
-  // 🕒 Live Timer Logic (updates every second only for in-progress)
   useEffect(() => {
     const interval = setInterval(() => {
       const updatedTimers: Record<string, number> = {};
@@ -80,8 +74,6 @@ export default function AdminDashboard() {
 
     return () => clearInterval(interval);
   }, [tasks]);
-
-  // 🧮 Time Formatter
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -90,8 +82,6 @@ export default function AdminDashboard() {
 
     return `${hours}h ${minutes}m ${seconds}s`;
   };
-
-  // 🧹 Delete Task
   const deleteTask = async (taskId: string) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -117,8 +107,6 @@ export default function AdminDashboard() {
       Swal.fire("Error!", "Failed to delete the task.", "error");
     }
   };
-
-  // 📅 Filter by user and date range
   const filteredTasks = tasks.filter((task) => {
     const matchesUser = selectedUser ? task.userId === selectedUser : true;
 

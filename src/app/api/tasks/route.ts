@@ -3,13 +3,45 @@ import clientPromise from "../../lib/mongodb";
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
+  const startDate = req.nextUrl.searchParams.get("startDate");
+  const endDate = req.nextUrl.searchParams.get("endDate");
+  const search = req.nextUrl.searchParams.get("search");
+
   if (!userId)
     return NextResponse.json({ message: "User ID missing" }, { status: 400 });
 
-  const client = await clientPromise;
-  const db = client.db();
-  const tasks = await db.collection("tasks").find({ userId }).toArray();
-  return NextResponse.json({ tasks });
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const query: any = { userId };
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      query.$or = [
+        { startDate: { $gte: start, $lte: end } },
+        { endDate: { $gte: start, $lte: end } },
+      ];
+    }
+
+    const tasks = await db
+      .collection("tasks")
+      .find(query)
+      .sort({ _id: -1 })
+      .toArray();
+
+    return NextResponse.json({ tasks });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
