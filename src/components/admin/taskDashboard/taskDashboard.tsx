@@ -5,6 +5,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import Swal from "sweetalert2";
 
 type Task = {
   _id: string;
@@ -12,6 +13,8 @@ type Task = {
   userId: string;
   userName?: string;
   totalTime: number;
+  status: string; // <-- added
+  lastStart?: string | null; // <-- added
   startDate?: string;
   endDate?: string;
 };
@@ -24,8 +27,10 @@ export default function AdminDashboard() {
     null,
     null,
   ]);
+  const [timerMap, setTimerMap] = useState<Record<string, number>>({});
   const [startDate, endDate] = dateRange;
 
+  // Fetch all tasks
   const fetchTasks = async () => {
     try {
       const token = Cookies.get("token");
@@ -35,6 +40,8 @@ export default function AdminDashboard() {
 
       const allTasks: Task[] = res.data.tasks || [];
       setTasks(allTasks);
+
+      // Unique users for dropdown
       const uniqueUsers = Array.from(
         new Map(
           allTasks.map((t) => [
@@ -53,6 +60,65 @@ export default function AdminDashboard() {
     fetchTasks();
   }, []);
 
+  // 🕒 Live Timer Logic (updates every second only for in-progress)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const updatedTimers: Record<string, number> = {};
+
+      tasks.forEach((task) => {
+        if (task.status === "in-progress" && task.lastStart) {
+          const elapsed =
+            new Date().getTime() - new Date(task.lastStart).getTime();
+          updatedTimers[task._id] = (task.totalTime || 0) + elapsed;
+        } else {
+          updatedTimers[task._id] = task.totalTime || 0;
+        }
+      });
+
+      setTimerMap(updatedTimers);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [tasks]);
+
+  // 🧮 Time Formatter
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  // 🧹 Delete Task
+  const deleteTask = async (taskId: string) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will permanently delete the task!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const token = Cookies.get("token");
+      await axios.delete(`/api/admin/tasks?taskId=${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTasks((prev) => prev.filter((task) => task._id !== taskId));
+      Swal.fire("Deleted!", "The task has been removed.", "success");
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      Swal.fire("Error!", "Failed to delete the task.", "error");
+    }
+  };
+
+  // 📅 Filter by user and date range
   const filteredTasks = tasks.filter((task) => {
     const matchesUser = selectedUser ? task.userId === selectedUser : true;
 
@@ -67,43 +133,20 @@ export default function AdminDashboard() {
     return matchesUser && matchesDate;
   });
 
-  const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    let result = "";
-    if (hours > 0) result += `${hours}h `;
-    if (minutes > 0) result += `${minutes}m `;
-    if (seconds > 0 || result === "") result += `${seconds}s`;
-
-    return result.trim();
-  };
-
-  const deleteTask = async (taskId: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return;
-    try {
-      const token = Cookies.get("token");
-      await axios.delete(`/api/admin/tasks?taskId=${taskId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
-    } catch (err) {
-      console.error("Error deleting task:", err);
-    }
-  };
-
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
-      <h1 className="text-3xl font-bold mb-6 text-center">Admin Task Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">
+        Admin Task Dashboard
+      </h1>
+
+      {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
         <div>
           <label className="mr-2 font-semibold">Filter by User:</label>
           <select
             value={selectedUser}
             onChange={(e) => setSelectedUser(e.target.value)}
-            className="border p-2 rounded dark:text-white  dark:bg-black"
+            className="border p-2 rounded dark:text-white dark:bg-black"
           >
             <option value="">All Users</option>
             {users.map((user) => (
@@ -130,12 +173,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Table */}
       <div className="">
         <table className="w-full border mt-4">
           <thead>
             <tr className="bg-gray-100 dark:bg-gray-800">
               <th className="border p-3">User Name</th>
               <th className="border p-3">Task Name</th>
+              <th className="border p-3">Status</th>
               <th className="border p-3">Total Time</th>
               <th className="border p-3">Start Date</th>
               <th className="border p-3">End Date</th>
@@ -144,23 +189,26 @@ export default function AdminDashboard() {
           </thead>
           <tbody>
             {filteredTasks.map((task) => {
-              const isCompleted = Boolean(task.endDate);
+              const isCompleted = task.status === "completed";
               const rowColor = isCompleted
-                ? "bg-green-50 dark:bg-green-500"
-                : "bg-yellow-50 dark:bg-red-900";
+                ? "bg-green-500 dark:bg-green-500"
+                : "bg-transparent";
 
               return (
-                <tr
-                  key={task._id}
-                  className={`border-b ${rowColor}`}
-                >
+                <tr key={task._id} className={`border-b ${rowColor}`}>
                   <td className="border p-2 text-center">
                     {task.userName || task.userId}
                   </td>
                   <td className="border p-2 text-center">{task.name}</td>
-                  <td className="border p-2 text-center">
-                    {formatTime(task.totalTime)}
+                  <td className="border p-2 text-center capitalize">
+                    {task.status}
                   </td>
+
+                  {/* 🕒 Live or Fixed Time */}
+                  <td className="border p-2 text-center font-medium">
+                    {formatTime(timerMap[task._id] || 0)}
+                  </td>
+
                   <td className="border p-2 text-center">
                     {task.startDate
                       ? new Date(task.startDate).toLocaleDateString("en-GB")
@@ -186,7 +234,7 @@ export default function AdminDashboard() {
             {filteredTasks.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={7}
                   className="border p-4 text-center text-gray-500 dark:text-white"
                 >
                   No tasks found for the selected filters

@@ -3,7 +3,7 @@
 import Cookies from "js-cookie";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-
+import Swal from "sweetalert2";
 export const UserList = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -84,6 +84,18 @@ export const UserList = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will permanently delete the user!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       const res = await fetch(`/api/user?userId=${id}`, {
         method: "DELETE",
@@ -94,11 +106,14 @@ export const UserList = () => {
 
       if (res.ok) {
         setUsers((prev) => prev.filter((u) => u._id !== id));
+        await Swal.fire("Deleted!", "The user has been removed.", "success");
       } else {
         console.error("Error deleting user");
+        Swal.fire("Error!", "Failed to delete the user.", "error");
       }
     } catch (err) {
       console.error("Error:", err);
+      Swal.fire("Error!", "Something went wrong.", "error");
     }
   };
 

@@ -174,31 +174,44 @@ export default function UserTaskManager() {
                     : "-"}
                 </td>
                 <td className="border p-2 flex gap-2 justify-center">
-                  {task.status !== "completed" ? (
-                    <>
-                      <button
-                        onClick={() => handleAction(task.name, "start")}
-                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-700 cursor-pointer"
-                      >
-                        Start
-                      </button>
-                      <button
-                        onClick={() => handleAction(task.name, "stop")}
-                        className="bg-yellow-600 text-white p-1 rounded hover:bg-yellow-700 cursor-pointer"
-                      >
-                        Stop
-                      </button>
-                      <button
-                        onClick={() => handleAction(task.name, "complete")}
-                        className="bg-green-600 text-white p-1 rounded hover:bg-green-700 cursor-pointer"
-                      >
-                        Complete
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-green-600 font-bold">Completed</span>
-                  )}
-                </td>
+  {task.status !== "completed" ? (
+    <>
+      <button
+        onClick={() => handleAction(task.name, "start")}
+        disabled={task.status === "in-progress"}
+        className={`p-1 rounded text-white ${
+          task.status === "in-progress"
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+        }`}
+      >
+        Start
+      </button>
+
+      <button
+        onClick={() => handleAction(task.name, "stop")}
+        disabled={task.status !== "in-progress"}
+        className={`p-1 rounded text-white ${
+          task.status !== "in-progress"
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-yellow-600 hover:bg-yellow-700 cursor-pointer"
+        }`}
+      >
+        Stop
+      </button>
+
+      <button
+        onClick={() => handleAction(task.name, "complete")}
+        className="bg-green-600 text-white p-1 rounded hover:bg-green-700 cursor-pointer"
+      >
+        Complete
+      </button>
+    </>
+  ) : (
+    <span className="text-green-600 font-bold">Completed</span>
+  )}
+</td>
+
               </tr>
             ))}
           </tbody>
