@@ -69,7 +69,7 @@ export default function LoginForm() {
             className="w-full p-2 border rounded pr-10 dark:text-white"
           />
           <span
-            className="absolute right-3 top-9 cursor-pointer text-gray-600 hover:text-gray-800 dark:text-white dark:hover:text-white"
+            className="absolute right-3 top-9 cursor-pointer text-gray-600 hover:text-gray-800"
             onClick={() => setShowPassword((prev) => !prev)}
           >
             {showPassword ? (
