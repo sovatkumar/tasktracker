@@ -126,8 +126,6 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-6 text-center">
         Admin Task Dashboard
       </h1>
-
-      {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
         <div>
           <label className="mr-2 font-semibold">Filter by User:</label>
@@ -160,8 +158,6 @@ export default function AdminDashboard() {
           />
         </div>
       </div>
-
-      {/* Table */}
       <div className="">
         <table className="w-full border mt-4">
           <thead>
@@ -191,8 +187,6 @@ export default function AdminDashboard() {
                   <td className="border p-2 text-center capitalize">
                     {task.status}
                   </td>
-
-                  {/* 🕒 Live or Fixed Time */}
                   <td className="border p-2 text-center font-medium">
                     {formatTime(timerMap[task._id] || 0)}
                   </td>

@@ -4,16 +4,22 @@ import Cookies from "js-cookie";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
+import { Eye, EyeOff } from "lucide-react";
+
 export const UserList = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
   const [editedData, setEditedData] = useState({
     name: "",
     email: "",
     role: "",
     userId: "",
+    password: "",
   });
+
   const token = Cookies.get("token");
 
   useEffect(() => {
@@ -31,7 +37,7 @@ export const UserList = () => {
       }
     };
     fetchUsers();
-  }, []);
+  }, [token]);
 
   const handleEdit = (user: any, userId: string) => {
     setSelectedUser(user);
@@ -39,8 +45,10 @@ export const UserList = () => {
       name: user.name,
       email: user.email,
       role: user.role,
-      userId: userId,
+      userId,
+      password: "", // never show existing password
     });
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -60,15 +68,15 @@ export const UserList = () => {
       if (res.ok) {
         setUsers((prev) =>
           prev.map((u) =>
-            u._id === selectedUser._id ? { ...u, ...editedData } : u
+            u._id === selectedUser._id
+              ? { ...u, ...editedData, password: undefined }
+              : u
           )
         );
         toast.success("✅ User updated successfully!");
         setIsModalOpen(false);
       } else if (res.status === 409) {
-        toast.error(
-          "❌ This email already exists. Please use a different one."
-        );
+        toast.error("❌ This email already exists. Please use a different one.");
       } else if (res.status === 400) {
         toast.error(data.message || "Please fill all required fields.");
       } else if (res.status === 401) {
@@ -107,7 +115,6 @@ export const UserList = () => {
         setUsers((prev) => prev.filter((u) => u._id !== id));
         await Swal.fire("Deleted!", "The user has been removed.", "success");
       } else {
-        console.error("Error deleting user");
         Swal.fire("Error!", "Failed to delete the user.", "error");
       }
     } catch (err) {
@@ -153,7 +160,7 @@ export const UserList = () => {
                 </td>
                 <td className="p-3 flex justify-center gap-3">
                   <button
-                    onClick={() => handleEdit(user, user?._id)}
+                    onClick={() => handleEdit(user, user._id)}
                     className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-500 rounded-full hover:bg-blue-600 active:scale-95 transition cursor-pointer"
                   >
                     ✏️ Edit
@@ -180,7 +187,6 @@ export const UserList = () => {
           </tbody>
         </table>
       </div>
-
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-96 shadow-lg">
@@ -217,6 +223,27 @@ export const UserList = () => {
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
               </select>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="New Password (optional)"
+                  value={editedData.password}
+                  onChange={(e) =>
+                    setEditedData((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  className="border p-2 rounded-md w-full dark:text-white pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 flex justify-between">

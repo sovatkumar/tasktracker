@@ -108,7 +108,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, name, email, role } = body;
+    const { userId, name, email, role, password } = body;
 
     if (!userId || !name || !email || !role) {
       return NextResponse.json(
@@ -130,12 +130,23 @@ export async function PUT(req: NextRequest) {
         { status: 409 }
       );
     }
-    await db
-      .collection("users")
-      .updateOne(
-        { _id: new ObjectId(userId) },
-        { $set: { name, email, role } }
+
+    const updateData: any = { name, email, role };
+    if (password && password.trim() !== "") {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+    const result = await db.collection("users").updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: updateData }
+    );
+
+    if (result.modifiedCount === 0) {
+      return NextResponse.json(
+        { message: "No changes were made." },
+        { status: 200 }
       );
+    }
 
     return NextResponse.json(
       { message: "User updated successfully" },
@@ -146,3 +157,4 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
+

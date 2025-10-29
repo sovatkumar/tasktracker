@@ -152,8 +152,6 @@ export default function UserTaskManager() {
             className="border p-2 rounded dark:text-white"
           />
         </div>
-
-        {/* 🔎 Search Box (debounced API) */}
         <input
           type="text"
           placeholder="Search task by name..."
@@ -162,8 +160,6 @@ export default function UserTaskManager() {
           className="border p-2 rounded w-64 dark:text-white"
         />
       </div>
-
-      {/* ➕ Create Task */}
       <form onSubmit={handleSubmit(onSubmit)} className="flex mb-4 gap-2">
         <input
           type="text"
@@ -182,8 +178,6 @@ export default function UserTaskManager() {
       {errors.taskName && (
         <p className="text-red-500 mb-2">{errors.taskName.message}</p>
       )}
-
-      {/* 🧾 Task Table */}
       {filteredTasks.length > 0 ? (
         <table className="w-full border">
           <thead>
