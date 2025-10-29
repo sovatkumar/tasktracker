@@ -224,23 +224,19 @@ export default function AdminDashboard() {
           {filteredTasks.map((task) => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+
             const deadlineDate = task.deadline
               ? new Date(task.deadline)
               : undefined;
             deadlineDate?.setHours(0, 0, 0, 0);
 
             const isOverdue =
-              deadlineDate && deadlineDate < today && task.status !== "completed";
-            const isDueToday =
               deadlineDate &&
-              deadlineDate.getTime() === today.getTime() &&
+              deadlineDate < today &&
               task.status !== "completed";
-
             let rowColor = "";
             if (isOverdue) {
               rowColor = "bg-red-300 dark:bg-red-800";
-            } else if (isDueToday) {
-              rowColor = "bg-yellow-200 dark:bg-yellow-700";
             } else {
               switch (task.status) {
                 case "completed":
@@ -301,7 +297,7 @@ export default function AdminDashboard() {
                       }}
                       disabled={task.status === "completed"}
                       placeholderText="Set Deadline"
-                      className="border text-sm p-1 rounded w-32 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:cursor-not-allowed"
+                      className="border text-sm p-1 rounded w-32 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:"
                     />
                   </div>
                 </td>
