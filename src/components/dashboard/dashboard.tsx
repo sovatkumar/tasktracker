@@ -33,6 +33,7 @@ export default function UserTaskManager() {
   ]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [startDate, endDate] = dateRange;
 
   const {
@@ -41,6 +42,7 @@ export default function UserTaskManager() {
     reset,
     formState: { errors },
   } = useForm<FormData>();
+
   useEffect(() => {
     const token: any = Cookies.get("token");
     if (token) {
@@ -48,17 +50,17 @@ export default function UserTaskManager() {
       setUserId(decoded?.userId);
     }
   }, []);
+
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
+
   const fetchTasks = async () => {
     if (!userId) return;
     try {
       const params: any = { userId };
-      if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-      }
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
       const res = await axios.get("/api/tasks", { params });
       setTasks(res.data.tasks || []);
@@ -67,6 +69,7 @@ export default function UserTaskManager() {
       toast.error("Failed to load tasks");
     }
   };
+
   useEffect(() => {
     fetchTasks();
   }, [userId, debouncedSearch]);
@@ -94,11 +97,13 @@ export default function UserTaskManager() {
 
     try {
       const now = new Date();
+      const currentTime = now.toLocaleTimeString("en-GB", { hour12: false });
+
       await axios.post("/api/tasks", {
         userId,
         name,
         action,
-        ...(action === "start" && { startDate: now }),
+        ...(action === "start" && { startDate: now, startTime: currentTime }),
         ...(action === "complete" && { endDate: now }),
       });
 
@@ -108,10 +113,12 @@ export default function UserTaskManager() {
       toast.error("Error updating task");
     }
   };
+
   const onSubmit = async (data: FormData) => {
     await handleAction(data.taskName, "pending");
     reset();
   };
+
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -119,7 +126,9 @@ export default function UserTaskManager() {
     const seconds = totalSeconds % 60;
     return `${hours}h ${minutes}m ${seconds}s`;
   };
+
   const filteredTasks = tasks.filter((task) => {
+    let match:any = true;
     if (startDate && endDate) {
       const adjustedEndDate = new Date(endDate);
       adjustedEndDate.setHours(23, 59, 59, 999);
@@ -129,9 +138,11 @@ export default function UserTaskManager() {
         taskStart && taskStart >= startDate && taskStart <= adjustedEndDate;
       const matchesEnd =
         taskEnd && taskEnd >= startDate && taskEnd <= adjustedEndDate;
-      return matchesStart || matchesEnd;
+      match = matchesStart || matchesEnd;
     }
-    return true;
+    if (statusFilter !== "all" && task.status !== statusFilter) return false;
+
+    return match;
   });
 
   return (
@@ -152,6 +163,7 @@ export default function UserTaskManager() {
             className="border p-2 rounded dark:text-white"
           />
         </div>
+
         <input
           type="text"
           placeholder="Search task by name..."
@@ -159,6 +171,18 @@ export default function UserTaskManager() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="border p-2 rounded w-64 dark:text-white"
         />
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border p-2 rounded dark:bg-black dark:text-white"
+        >
+          <option value="all">All Tasks</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="paused">Paused</option>
+
+        </select>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="flex mb-4 gap-2">
         <input
@@ -209,12 +233,27 @@ export default function UserTaskManager() {
                 </td>
                 <td className="border p-2 text-center">
                   {task.startDate
-                    ? new Date(task.startDate).toLocaleDateString("en-GB")
+                    ? new Date(task.startDate).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })
                     : "-"}
                 </td>
                 <td className="border p-2 text-center">
                   {task.endDate
-                    ? new Date(task.endDate).toLocaleDateString("en-GB")
+                    ? new Date(task.endDate).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: true,
+                      })
                     : "-"}
                 </td>
                 <td className="border p-2 flex gap-2 justify-center">

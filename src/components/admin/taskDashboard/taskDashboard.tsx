@@ -33,6 +33,7 @@ export default function AdminDashboard() {
   const [deadlinePicker, setDeadlinePicker] = useState<
     Record<string, string | null>
   >({});
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   const [startDate, endDate] = dateRange;
   const fetchTasks = async () => {
@@ -147,7 +148,15 @@ export default function AdminDashboard() {
       matchesDate = taskEnd >= startDate && taskEnd <= adjustedEndDate;
     }
 
-    return matchesUser && matchesDate;
+    const matchesStatus = selectedStatus
+      ? selectedStatus === "missed"
+        ? task.deadline &&
+          new Date(task.deadline) < new Date() &&
+          task.status !== "completed"
+        : task.status === selectedStatus
+      : true;
+
+    return matchesUser && matchesDate && matchesStatus;
   });
 
   return (
@@ -190,23 +199,31 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div className="flex gap-4 mb-4 justify-center">
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-400 rounded-full"></span>
-          <span className="text-sm font-medium">Completed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-yellow-300 rounded-full"></span>
-          <span className="text-sm font-medium">Paused</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-blue-300 rounded-full"></span>
-          <span className="text-sm font-medium">In Progress</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-red-400 rounded-full"></span>
-          <span className="text-sm font-medium">Missed Deadline</span>
-        </div>
+        {[
+          { label: "Completed", color: "bg-green-400", status: "completed" },
+          { label: "Paused", color: "bg-yellow-300", status: "paused" },
+          { label: "In Progress", color: "bg-blue-300", status: "in-progress" },
+          { label: "Missed Deadline", color: "bg-red-400", status: "missed" },
+        ].map((item) => (
+          <div
+            key={item.label}
+            onClick={() =>
+              setSelectedStatus(
+                selectedStatus === item.status ? "" : item.status
+              )
+            }
+            className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md ${
+              selectedStatus === item.status
+                ? "ring-2 ring-offset-2 ring-gray-600 dark:ring-white"
+                : ""
+            }`}
+          >
+            <span className={`w-4 h-4 ${item.color} rounded-full`}></span>
+            <span className="text-sm font-medium">{item.label}</span>
+          </div>
+        ))}
       </div>
+
       <table className="w-full border mt-2">
         <thead>
           <tr className="bg-gray-100 dark:bg-gray-800">
@@ -222,31 +239,29 @@ export default function AdminDashboard() {
         </thead>
         <tbody>
           {filteredTasks.map((task) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
+            const now = new Date();
             const deadlineDate = task.deadline
               ? new Date(task.deadline)
               : undefined;
-            deadlineDate?.setHours(0, 0, 0, 0);
 
             const isOverdue =
               deadlineDate &&
-              deadlineDate < today &&
+              deadlineDate.getTime() < now.getTime() &&
               task.status !== "completed";
+
             let rowColor = "";
             if (isOverdue) {
               rowColor = "bg-red-300 dark:bg-red-800";
             } else {
               switch (task.status) {
                 case "completed":
-                  rowColor = "bg-green-200 dark:bg-green-800";
+                  rowColor = "text-white bg-green-800";
                   break;
                 case "paused":
-                  rowColor = "bg-yellow-200 dark:bg-yellow-700";
+                  rowColor = "text-white bg-yellow-700";
                   break;
                 case "in-progress":
-                  rowColor = "bg-blue-200 dark:bg-blue-700";
+                  rowColor = "text-white bg-blue-700";
                   break;
                 default:
                   rowColor = "bg-transparent";
@@ -254,12 +269,12 @@ export default function AdminDashboard() {
             }
 
             return (
-              <tr key={task._id} className={`border-b ${rowColor}`}>
+              <tr key={task._id} className={`border-b `}>
                 <td className="border p-2 text-center">
                   {task.userName || task.userId}
                 </td>
                 <td className="border p-2 text-center">{task.name}</td>
-                <td className="border p-2 text-center capitalize">
+                <td className={`border p-2 text-center capitalize ${rowColor}`}>
                   {task.status}
                 </td>
                 <td className="border p-2 text-center font-medium">
@@ -267,23 +282,47 @@ export default function AdminDashboard() {
                 </td>
                 <td className="border p-2 text-center">
                   {task.startDate
-                    ? new Date(task.startDate).toLocaleDateString("en-GB")
+                    ? new Date(task.startDate).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                         hour12: true,
+                      })
                     : "-"}
                 </td>
                 <td className="border p-2 text-center">
                   {task.endDate
-                    ? new Date(task.endDate).toLocaleDateString("en-GB")
+                    ? new Date(task.endDate).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })
                     : "-"}
                 </td>
                 <td className="border p-2 text-center">
                   {task.deadline
-                    ? new Date(task.deadline).toLocaleDateString("en-GB")
+                    ? new Date(task.deadline).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
                     : "-"}
+
                   <div className="mt-1">
                     <DatePicker
                       selected={
                         deadlinePicker[task._id]
                           ? new Date(deadlinePicker[task._id]!)
+                          : task.deadline
+                          ? new Date(task.deadline)
                           : null
                       }
                       onChange={(date: Date | null) => {
@@ -292,12 +331,23 @@ export default function AdminDashboard() {
                             ...prev,
                             [task._id]: date.toISOString(),
                           }));
-                          setDeadline(task, date);
+                          const hasTimeSelected =
+                            date.getHours() !== 0 ||
+                            date.getMinutes() !== 0 ||
+                            date.getSeconds() !== 0;
+
+                          if (hasTimeSelected) {
+                            setDeadline(task, date);
+                          }
                         }
                       }}
+                      showTimeSelect
+                      timeFormat="HH:mm"
+                      timeIntervals={15}
+                      dateFormat="dd/MM/yyyy HH:mm"
+                      placeholderText="Select date & time"
                       disabled={task.status === "completed"}
-                      placeholderText="Set Deadline"
-                      className="border text-sm p-1 rounded w-32 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:"
+                      className="border text-sm p-1 rounded w-44 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:cursor-not-allowed"
                     />
                   </div>
                 </td>
