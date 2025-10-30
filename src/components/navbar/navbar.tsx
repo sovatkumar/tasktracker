@@ -37,6 +37,12 @@ export default function Navbar() {
               Admin Dashboard
             </button>
             <button
+              onClick={() => router.push("/admin/userlogtime")}
+              className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
+            >
+              View Log Time
+            </button>
+            <button
               onClick={() => router.push("/admin/users")}
               className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
             >
