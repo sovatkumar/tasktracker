@@ -128,7 +128,7 @@ export default function UserTaskManager() {
   };
 
   const filteredTasks = tasks.filter((task) => {
-    let match:any = true;
+    let match: any = true;
     if (startDate && endDate) {
       const adjustedEndDate = new Date(endDate);
       adjustedEndDate.setHours(23, 59, 59, 999);
@@ -181,7 +181,6 @@ export default function UserTaskManager() {
           <option value="in-progress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="paused">Paused</option>
-
         </select>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="flex mb-4 gap-2">
@@ -255,41 +254,45 @@ export default function UserTaskManager() {
                       })
                     : "-"}
                 </td>
-                <td className=" p-2 flex gap-2 justify-center">
-                  {task.status !== "completed" ? (
-                    <>
-                      <button
-                        onClick={() => handleAction(task.name, "start")}
-                        disabled={task.status === "in-progress"}
-                        className={`p-1 rounded text-white ${
-                          task.status === "in-progress"
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                      >
-                        Start
-                      </button>
-                      <button
-                        onClick={() => handleAction(task.name, "stop")}
-                        disabled={task.status !== "in-progress"}
-                        className={`p-1 rounded text-white ${
-                          task.status !== "in-progress"
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-yellow-600 hover:bg-yellow-700"
-                        }`}
-                      >
-                        Stop
-                      </button>
-                      <button
-                        onClick={() => handleAction(task.name, "complete")}
-                        className="bg-green-600 text-white p-1 rounded hover:bg-green-700"
-                      >
-                        Complete
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-green-600 font-bold">Completed</span>
-                  )}
+                <td className="border p-2 text-center align-middle h-16">
+                  <div className="flex gap-2 justify-center items-center h-full">
+                    {task.status !== "completed" ? (
+                      <>
+                        <button
+                          onClick={() => handleAction(task.name, "start")}
+                          disabled={task.status === "in-progress"}
+                          className={`p-1 rounded text-white ${
+                            task.status === "in-progress"
+                              ? "bg-gray-400 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700"
+                          }`}
+                        >
+                          Start
+                        </button>
+                        <button
+                          onClick={() => handleAction(task.name, "stop")}
+                          disabled={task.status !== "in-progress"}
+                          className={`p-1 rounded text-white ${
+                            task.status !== "in-progress"
+                              ? "bg-gray-400 cursor-not-allowed"
+                              : "bg-yellow-600 hover:bg-yellow-700"
+                          }`}
+                        >
+                          Stop
+                        </button>
+                        <button
+                          onClick={() => handleAction(task.name, "complete")}
+                          className="bg-green-600 text-white p-1 rounded hover:bg-green-700"
+                        >
+                          Complete
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-green-600 font-bold">
+                        Completed
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
