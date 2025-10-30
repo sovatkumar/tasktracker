@@ -34,8 +34,11 @@ export default function AdminDashboard() {
     Record<string, string | null>
   >({});
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const tasksPerPage = 10;
 
   const [startDate, endDate] = dateRange;
+
   const fetchTasks = async () => {
     try {
       const token = Cookies.get("token");
@@ -89,6 +92,7 @@ export default function AdminDashboard() {
     const seconds = totalSeconds % 60;
     return `${hours}h ${minutes}m ${seconds}s`;
   };
+
   const deleteTask = async (taskId: string) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -114,6 +118,7 @@ export default function AdminDashboard() {
       Swal.fire("Error!", "Failed to delete the task.", "error");
     }
   };
+
   const setDeadline = async (task: Task, deadlineDate: Date) => {
     try {
       const token = Cookies.get("token");
@@ -137,6 +142,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // ✅ Filter logic
   const filteredTasks = tasks.filter((task) => {
     const matchesUser = selectedUser ? task.userId === selectedUser : true;
 
@@ -158,6 +164,18 @@ export default function AdminDashboard() {
 
     return matchesUser && matchesDate && matchesStatus;
   });
+
+  // ✅ Pagination logic
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const paginatedTasks = filteredTasks.slice(
+    (currentPage - 1) * tasksPerPage,
+    currentPage * tasksPerPage
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedUser, selectedStatus, dateRange]);
 
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
@@ -202,16 +220,12 @@ export default function AdminDashboard() {
         {[
           { label: "Completed", color: "bg-green-400", status: "completed" },
           { label: "Paused", color: "bg-yellow-300", status: "paused" },
-          { label: "In Progress", color: "bg-blue-300", status: "in-progress" },
-          { label: "Missed Deadline", color: "bg-red-400", status: "missed" },
+          { label: "In Progress", color: "bg-blue-700", status: "in-progress" },
+          { label: "Missed Deadline", color: "bg-red-500", status: "missed" },
         ].map((item) => (
           <div
             key={item.label}
-            onClick={() =>
-              setSelectedStatus(
-                selectedStatus === item.status ? "" : item.status
-              )
-            }
+            onClick={() => setSelectedStatus(item.status)}
             className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md ${
               selectedStatus === item.status
                 ? "ring-2 ring-offset-2 ring-gray-600 dark:ring-white"
@@ -222,6 +236,18 @@ export default function AdminDashboard() {
             <span className="text-sm font-medium">{item.label}</span>
           </div>
         ))}
+
+        <button
+          onClick={() => {
+            setSelectedUser("");
+            setSelectedStatus("");
+            setDateRange([null, null]);
+            fetchTasks();
+          }}
+          className="px-3 py-1 rounded-md bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 cursor-pointer"
+        >
+          Reset Filters
+        </button>
       </div>
 
       <table className="w-full border mt-2">
@@ -238,38 +264,34 @@ export default function AdminDashboard() {
           </tr>
         </thead>
         <tbody>
-          {filteredTasks.map((task) => {
+          {paginatedTasks.map((task) => {
             const now = new Date();
             const deadlineDate = task.deadline
               ? new Date(task.deadline)
               : undefined;
-
             const isOverdue =
               deadlineDate &&
               deadlineDate.getTime() < now.getTime() &&
               task.status !== "completed";
 
             let rowColor = "";
-            if (isOverdue) {
-              rowColor = "bg-red-300 dark:bg-red-800";
-            } else {
+            if (isOverdue) rowColor = "bg-red-500 text-white";
+            else {
               switch (task.status) {
                 case "completed":
-                  rowColor = "text-white bg-green-800";
+                  rowColor = "text-white bg-green-400";
                   break;
                 case "paused":
-                  rowColor = "text-white bg-yellow-700";
+                  rowColor = "text-white bg-[#ffbd03]";
                   break;
                 case "in-progress":
                   rowColor = "text-white bg-blue-700";
                   break;
-                default:
-                  rowColor = "bg-transparent";
               }
             }
 
             return (
-              <tr key={task._id} className={`border-b `}>
+              <tr key={task._id} className="border-b">
                 <td className="border p-2 text-center">
                   {task.userName || task.userId}
                 </td>
@@ -288,7 +310,7 @@ export default function AdminDashboard() {
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
-                         hour12: true,
+                        hour12: true,
                       })
                     : "-"}
                 </td>
@@ -312,10 +334,9 @@ export default function AdminDashboard() {
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
-                        hour12: false,
+                        hour12: true,
                       })
                     : "-"}
-
                   <div className="mt-1">
                     <DatePicker
                       selected={
@@ -331,14 +352,11 @@ export default function AdminDashboard() {
                             ...prev,
                             [task._id]: date.toISOString(),
                           }));
-                          const hasTimeSelected =
-                            date.getHours() !== 0 ||
-                            date.getMinutes() !== 0 ||
-                            date.getSeconds() !== 0;
-
-                          if (hasTimeSelected) {
-                            setDeadline(task, date);
-                          }
+                          const hasTime =
+                            date.getHours() ||
+                            date.getMinutes() ||
+                            date.getSeconds();
+                          if (hasTime) setDeadline(task, date);
                         }
                       }}
                       showTimeSelect
@@ -375,6 +393,47 @@ export default function AdminDashboard() {
           )}
         </tbody>
       </table>
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3 mt-6">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 rounded-lg ${
+              currentPage === 1
+                ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            Prev
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`px-3 py-1 rounded-lg ${
+                currentPage === i + 1
+                  ? "bg-blue-700 text-white"
+                  : "bg-gray-200 dark:bg-gray-700"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className={`px-4 py-2 rounded-lg ${
+              currentPage === totalPages
+                ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

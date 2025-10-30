@@ -85,7 +85,10 @@ export async function POST(req: NextRequest) {
 
       case "start":
         updateData = { status: "in-progress", lastStart: now };
-        if (!existing?.startDate) updateData.startDate = startDate || now;
+        // ✅ Ensure startDate is saved as a Date, not string
+        if (!existing?.startDate)
+          updateData.startDate = startDate ? new Date(startDate) : now;
+
         await tasks.updateOne({ userId, name }, { $set: updateData });
         break;
 
@@ -107,6 +110,7 @@ export async function POST(req: NextRequest) {
         if (existing?.lastStart) {
           total += now.getTime() - new Date(existing.lastStart).getTime();
         }
+
         await tasks.updateOne(
           { userId, name },
           {
@@ -114,7 +118,8 @@ export async function POST(req: NextRequest) {
               status: "completed",
               totalTime: total,
               lastStart: null,
-              endDate: endDate || now,
+              // ✅ Convert endDate to Date if provided, else use now
+              endDate: endDate ? new Date(endDate) : now,
             },
           }
         );
@@ -129,12 +134,18 @@ export async function POST(req: NextRequest) {
         }
         await tasks.updateOne(
           { userId, name },
-          { $set: { deadline: new Date(deadline) } }
+          {
+            // ✅ Always store as Date type
+            $set: { deadline: new Date(deadline) },
+          }
         );
         break;
 
       default:
-        return NextResponse.json({ message: "Invalid action" }, { status: 400 });
+        return NextResponse.json(
+          { message: "Invalid action" },
+          { status: 400 }
+        );
     }
 
     const updated = await tasks.findOne({ userId, name });
@@ -147,3 +158,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
