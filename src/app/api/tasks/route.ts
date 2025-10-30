@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
     const db = client.db();
     const tasks = db.collection("tasks");
 
+    await tasks.createIndex({ deleteAt: 1 }, { expireAfterSeconds: 0 });
+
     const existing = await tasks.findOne({ userId, name });
     let updateData: any = {};
     const now = new Date();
@@ -85,7 +87,6 @@ export async function POST(req: NextRequest) {
 
       case "start":
         updateData = { status: "in-progress", lastStart: now };
-        // ✅ Ensure startDate is saved as a Date, not string
         if (!existing?.startDate)
           updateData.startDate = startDate ? new Date(startDate) : now;
 
@@ -111,6 +112,11 @@ export async function POST(req: NextRequest) {
           total += now.getTime() - new Date(existing.lastStart).getTime();
         }
 
+        const endDateObj = endDate ? new Date(endDate) : now;
+
+        const deleteAfter45Days = new Date(endDateObj);
+        deleteAfter45Days.setDate(deleteAfter45Days.getDate() + 45);
+
         await tasks.updateOne(
           { userId, name },
           {
@@ -118,8 +124,8 @@ export async function POST(req: NextRequest) {
               status: "completed",
               totalTime: total,
               lastStart: null,
-              // ✅ Convert endDate to Date if provided, else use now
-              endDate: endDate ? new Date(endDate) : now,
+              endDate: endDateObj,
+              deleteAt: deleteAfter45Days,
             },
           }
         );
@@ -135,7 +141,6 @@ export async function POST(req: NextRequest) {
         await tasks.updateOne(
           { userId, name },
           {
-            // ✅ Always store as Date type
             $set: { deadline: new Date(deadline) },
           }
         );
@@ -158,4 +163,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
 

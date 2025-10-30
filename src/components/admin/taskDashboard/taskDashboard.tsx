@@ -348,15 +348,18 @@ export default function AdminDashboard() {
                       }
                       onChange={(date: Date | null) => {
                         if (date) {
-                          setDeadlinePicker((prev) => ({
-                            ...prev,
-                            [task._id]: date.toISOString(),
-                          }));
+                          const selectedDate = new Date(date);
                           const hasTime =
-                            date.getHours() ||
-                            date.getMinutes() ||
-                            date.getSeconds();
-                          if (hasTime) setDeadline(task, date);
+                            selectedDate.getHours() !== 0 ||
+                            selectedDate.getMinutes() !== 0;
+                          if (!hasTime) selectedDate.setHours(17, 0, 0, 0);
+
+                          setDeadlinePicker((prev: any) => ({
+                            ...prev,
+                            [task._id]: selectedDate,
+                          }));
+
+                          setDeadline(task, selectedDate);
                         }
                       }}
                       showTimeSelect
@@ -365,6 +368,8 @@ export default function AdminDashboard() {
                       dateFormat="dd/MM/yyyy HH:mm"
                       placeholderText="Select date & time"
                       disabled={task.status === "completed"}
+                      openToDate={new Date(new Date().setHours(17, 0, 0, 0))}
+                      injectTimes={[new Date(new Date().setHours(17, 0, 0, 0))]}
                       className="border text-sm p-1 rounded w-44 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:cursor-not-allowed"
                     />
                   </div>
