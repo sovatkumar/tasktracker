@@ -256,7 +256,7 @@ export default function UserTaskManager() {
                       })
                     : "-"}
                 </td>
-                <td className="border p-2 flex gap-2 justify-center">
+                <td className=" p-2 flex gap-2 justify-center">
                   {task.status !== "completed" ? (
                     <>
                       <button
