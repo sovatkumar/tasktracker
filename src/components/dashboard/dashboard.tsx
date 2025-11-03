@@ -235,7 +235,7 @@ export default function UserTaskManager() {
                       ? task.name.slice(0, 40) + "..."
                       : task.name}
                   </td>
-                  <td className="border p-2 text-center capitalize">
+                  <td className="border p-2 text-center text-[15px] capitalize">
                     {task.status}
                   </td>
                   <td className="border p-2 text-center font-medium">
