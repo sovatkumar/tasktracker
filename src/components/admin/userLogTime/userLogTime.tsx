@@ -7,7 +7,9 @@ import Cookies from "js-cookie";
 export default function UserLogTimePage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [selectedDate, setSelectedDate] = useState(
+    dayjs().format("YYYY-MM-DD")
+  );
   const [loading, setLoading] = useState(true);
 
   const token = Cookies.get("token");
@@ -18,7 +20,7 @@ export default function UserLogTimePage() {
         const res = await axios.get("/api/admin/tasks", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setTasks(res.data.tasks || []); // ✅ Corrected to access `tasks`
+        setTasks(res.data.tasks || []);
       } catch (err) {
         console.error("Error fetching tasks:", err);
       } finally {
@@ -28,7 +30,6 @@ export default function UserLogTimePage() {
     fetchTasks();
   }, [token]);
 
-  // Helper: Format milliseconds into h m s
   const formatTime = (ms: number) => {
     if (!ms || ms <= 0) return "0h 0m 0s";
     const totalSeconds = Math.floor(ms / 1000);
@@ -38,11 +39,11 @@ export default function UserLogTimePage() {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
-  // Group logs by user and filter by date
   useEffect(() => {
     if (!tasks.length) return;
 
-    const logsByUser: Record<string, { totalMs: number; taskCount: number }> = {};
+    const logsByUser: Record<string, { totalMs: number; taskCount: number }> =
+      {};
 
     tasks.forEach((task: any) => {
       const logDate = dayjs(task.startDate).format("YYYY-MM-DD");
@@ -64,50 +65,59 @@ export default function UserLogTimePage() {
     setFilteredLogs(result);
   }, [tasks, selectedDate]);
 
-  if (loading) return <div>Loading user logs...</div>;
+  if (loading)
+    return <div className="text-center py-10">Loading user logs...</div>;
 
   return (
-    <div className="p-6 w-3xl mx-auto">
-      <h1 className="text-xl font-bold mb-4">User Log Time Report</h1>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center dark:text-white">
+        User Log Time Report
+      </h1>
 
-      {/* Date Filter */}
-      <div className="mb-4 dark:text-white">
-        <label className="font-medium mr-2">Select Date:</label>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 dark:text-white">
+        <label className="font-medium">Select Date:</label>
         <input
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="border p-2 rounded dark:text-white cursor-pointer dark:scheme-dark"
+          className="border p-2 rounded w-full sm:w-auto dark:text-white dark:bg-gray-800 dark:scheme-dark cursor-pointer"
         />
       </div>
 
-      {/* Table */}
-      <table className="w-full border-collapse border border-gray-400">
-        <thead className="bg-gray-100 dark:bg-transparent">
-          <tr>
-            <th className="border p-2 text-center">User</th>
-            <th className="border p-2 text-center">Tasks</th>
-            <th className="border p-2 text-center">Total Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredLogs.length > 0 ? (
-            filteredLogs.map((u) => (
-              <tr key={u.user}>
-                <td className="border p-2 text-center">{u.user}</td>
-                <td className="border p-2 text-center">{u.taskCount}</td>
-                <td className="border p-2 text-center">{u.formattedTime}</td>
-              </tr>
-            ))
-          ) : (
+      <div className="overflow-x-auto">
+        <table className="min-w-full border-collapse border border-gray-400 text-sm sm:text-base">
+          <thead className="bg-gray-100 dark:bg-gray-800">
             <tr>
-              <td colSpan={3} className="border p-2 text-center">
-                No logs found for {dayjs(selectedDate).format("MMM D, YYYY")}
-              </td>
+              <th className="border p-2 text-center">User</th>
+              <th className="border p-2 text-center">Tasks</th>
+              <th className="border p-2 text-center">Total Time</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredLogs.length > 0 ? (
+              filteredLogs.map((u) => (
+                <tr
+                  key={u.user}
+                  className="hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  <td className="border p-2 text-center">{u.user}</td>
+                  <td className="border p-2 text-center">{u.taskCount}</td>
+                  <td className="border p-2 text-center">{u.formattedTime}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="border p-4 text-center text-gray-600 dark:text-gray-300"
+                >
+                  No logs found for {dayjs(selectedDate).format("MMM D, YYYY")}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

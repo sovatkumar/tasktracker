@@ -46,7 +46,7 @@ export const UserList = () => {
       email: user.email,
       role: user.role,
       userId,
-      password: "", // never show existing password
+      password: "",
     });
     setShowPassword(false);
     setIsModalOpen(true);

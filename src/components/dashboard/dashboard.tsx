@@ -73,6 +73,7 @@ export default function UserTaskManager() {
   useEffect(() => {
     fetchTasks();
   }, [userId, debouncedSearch]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const updatedTimers: Record<string, number> = {};
@@ -89,6 +90,7 @@ export default function UserTaskManager() {
     }, 1000);
     return () => clearInterval(interval);
   }, [tasks]);
+
   const handleAction = async (
     name: string,
     action: "start" | "stop" | "complete" | "pending"
@@ -148,9 +150,12 @@ export default function UserTaskManager() {
   return (
     <div className="max-w-5xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
       <h2 className="text-2xl font-bold mb-4 text-center">Task Manager</h2>
-      <div className="flex flex-wrap gap-4 mb-6 items-center justify-between">
-        <div>
-          <label className="mr-2 font-semibold">Select Date Range:</label>
+
+      <div className="flex flex-wrap gap-4 mb-6 items-center justify-between max-sm:flex-col max-sm:items-stretch">
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-semibold block sm:inline mb-1 sm:mb-0">
+            Select Date Range:
+          </label>
           <DatePicker
             selectsRange
             startDate={startDate}
@@ -160,7 +165,7 @@ export default function UserTaskManager() {
             }
             isClearable
             placeholderText="Select date range"
-            className="border p-2 rounded dark:text-white"
+            className="border p-2 rounded w-full  dark:text-white"
           />
         </div>
 
@@ -169,13 +174,13 @@ export default function UserTaskManager() {
           placeholder="Search task by name..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="border p-2 rounded w-64 dark:text-white"
+          className="border p-2 rounded w-full sm:w-64 dark:text-white"
         />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border p-2 rounded dark:bg-black dark:text-white"
+          className="border p-2 rounded w-full sm:w-auto dark:bg-black dark:text-white"
         >
           <option value="all">All Tasks</option>
           <option value="in-progress">In Progress</option>
@@ -183,16 +188,20 @@ export default function UserTaskManager() {
           <option value="paused">Paused</option>
         </select>
       </div>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex mb-4 gap-2">
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex mb-4 gap-2 max-sm:flex-col"
+      >
         <input
           type="text"
           {...register("taskName", { required: "Task name is required" })}
           placeholder="Enter new task"
-          className="flex-1 p-2 border rounded"
+          className="flex-1 p-2 border rounded w-full"
         />
         <button
           type="submit"
-          className="bg-green-600 text-white p-2 rounded hover:bg-green-700 cursor-pointer"
+          className="bg-green-600 text-white p-2 rounded hover:bg-green-700 cursor-pointer w-full sm:w-auto"
         >
           Create
         </button>
@@ -201,108 +210,111 @@ export default function UserTaskManager() {
       {errors.taskName && (
         <p className="text-red-500 mb-2">{errors.taskName.message}</p>
       )}
-      {filteredTasks.length > 0 ? (
-        <table className="w-full border">
-          <thead>
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              <th className="border p-2">Task</th>
-              <th className="border p-2">Status</th>
-              <th className="border p-2">Time</th>
-              <th className="border p-2">Start Date</th>
-              <th className="border p-2">End Date</th>
-              <th className="border p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTasks.map((task) => (
-              <tr key={task._id}>
-                <td
-                  className="border p-2 text-left truncate max-w-xs"
-                  title={task.name}
-                >
-                  {task.name?.length > 40
-                    ? task.name.slice(0, 40) + "..."
-                    : task.name}
-                </td>
-                <td className="border p-2 text-center capitalize">
-                  {task.status}
-                </td>
-                <td className="border p-2 text-center font-medium">
-                  {formatTime(timerMap[task._id] || 0)}
-                </td>
-                <td className="border p-2 text-center">
-                  {task.startDate
-                    ? new Date(task.startDate).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-"}
-                </td>
-                <td className="border p-2 text-center">
-                  {task.endDate
-                    ? new Date(task.endDate).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-"}
-                </td>
-                <td className="border p-2 text-center align-middle h-16">
-                  <div className="flex gap-2 justify-center items-center h-full">
-                    {task.status !== "completed" ? (
-                      <>
-                        <button
-                          onClick={() => handleAction(task.name, "start")}
-                          disabled={task.status === "in-progress"}
-                          className={`p-1 rounded text-white ${
-                            task.status === "in-progress"
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700"
-                          }`}
-                        >
-                          Start
-                        </button>
-                        <button
-                          onClick={() => handleAction(task.name, "stop")}
-                          disabled={task.status !== "in-progress"}
-                          className={`p-1 rounded text-white ${
-                            task.status !== "in-progress"
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-yellow-600 hover:bg-yellow-700"
-                          }`}
-                        >
-                          Stop
-                        </button>
-                        <button
-                          onClick={() => handleAction(task.name, "complete")}
-                          className="bg-green-600 text-white p-1 rounded hover:bg-green-700"
-                        >
-                          Complete
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-green-600 font-bold">
-                        Completed
-                      </span>
-                    )}
-                  </div>
-                </td>
+
+      <div className="overflow-x-auto">
+        {filteredTasks.length > 0 ? (
+          <table className="w-full border text-sm sm:text-base">
+            <thead>
+              <tr className="bg-gray-100 dark:bg-gray-800">
+                <th className="border p-2">Task</th>
+                <th className="border p-2">Status</th>
+                <th className="border p-2">Time</th>
+                <th className="border p-2">Start Date</th>
+                <th className="border p-2">End Date</th>
+                <th className="border p-2">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="text-center text-gray-500 mt-6">
-          No tasks found for the selected filters.
-        </p>
-      )}
+            </thead>
+            <tbody>
+              {filteredTasks.map((task) => (
+                <tr key={task._id}>
+                  <td
+                    className="border p-2 text-left truncate max-w-xs"
+                    title={task.name}
+                  >
+                    {task.name?.length > 40
+                      ? task.name.slice(0, 40) + "..."
+                      : task.name}
+                  </td>
+                  <td className="border p-2 text-center capitalize">
+                    {task.status}
+                  </td>
+                  <td className="border p-2 text-center font-medium">
+                    {formatTime(timerMap[task._id] || 0)}
+                  </td>
+                  <td className="border p-2 text-center">
+                    {task.startDate
+                      ? new Date(task.startDate).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "-"}
+                  </td>
+                  <td className="border p-2 text-center">
+                    {task.endDate
+                      ? new Date(task.endDate).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "-"}
+                  </td>
+                  <td className="border p-2 text-center align-middle h-16">
+                    <div className="flex flex-wrap gap-2 justify-center items-center h-full">
+                      {task.status !== "completed" ? (
+                        <>
+                          <button
+                            onClick={() => handleAction(task.name, "start")}
+                            disabled={task.status === "in-progress"}
+                            className={`p-1 rounded text-white text-xs sm:text-sm ${
+                              task.status === "in-progress"
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-blue-600 hover:bg-blue-700"
+                            }`}
+                          >
+                            Start
+                          </button>
+                          <button
+                            onClick={() => handleAction(task.name, "stop")}
+                            disabled={task.status !== "in-progress"}
+                            className={`p-1 rounded text-white text-xs sm:text-sm ${
+                              task.status !== "in-progress"
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-yellow-600 hover:bg-yellow-700"
+                            }`}
+                          >
+                            Stop
+                          </button>
+                          <button
+                            onClick={() => handleAction(task.name, "complete")}
+                            className="bg-green-600 text-white p-1 rounded text-xs sm:text-sm hover:bg-green-700"
+                          >
+                            Complete
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-green-600 font-bold text-sm">
+                          Completed
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-center text-gray-500 mt-6">
+            No tasks found for the selected filters.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -142,7 +142,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ✅ Filter logic
   const filteredTasks = tasks.filter((task) => {
     const matchesUser = selectedUser ? task.userId === selectedUser : true;
 
@@ -165,32 +164,31 @@ export default function AdminDashboard() {
     return matchesUser && matchesDate && matchesStatus;
   });
 
-  // ✅ Pagination logic
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
   const paginatedTasks = filteredTasks.slice(
     (currentPage - 1) * tasksPerPage,
     currentPage * tasksPerPage
   );
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedUser, selectedStatus, dateRange]);
 
   return (
-    <div className="max-w-6xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
-      <h1 className="text-3xl font-bold mb-6 text-center">
+    <div className="max-w-6xl mx-auto mt-10 p-4 sm:p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white overflow-x-auto">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center">
         Admin Task Dashboard
       </h1>
 
-      {/* 🔹 Filters */}
-      <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
-        <div>
-          <label className="mr-2 font-semibold">Filter by User:</label>
+      <div className="mb-4 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-semibold block sm:inline mb-1 sm:mb-0">
+            Filter by User:
+          </label>
           <select
             value={selectedUser}
             onChange={(e) => setSelectedUser(e.target.value)}
-            className="border p-2 rounded dark:text-white dark:bg-black"
+            className="border p-2 rounded w-full sm:w-auto dark:text-white dark:bg-black"
           >
             <option value="">All Users</option>
             {users.map((user) => (
@@ -201,8 +199,10 @@ export default function AdminDashboard() {
           </select>
         </div>
 
-        <div>
-          <label className="mr-2 font-semibold">Select Date Range:</label>
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-semibold block sm:inline mb-1 sm:mb-0">
+            Select Date Range:
+          </label>
           <DatePicker
             selectsRange
             startDate={startDate}
@@ -212,11 +212,11 @@ export default function AdminDashboard() {
             }
             isClearable
             placeholderText="Select date range"
-            className="border p-2 rounded dark:text-white"
+            className="border p-2 rounded w-full sm:w-auto dark:text-white"
           />
         </div>
       </div>
-      <div className="flex gap-4 mb-4 justify-center">
+      <div className="flex flex-wrap gap-3 mb-4 justify-center">
         {[
           { label: "Completed", color: "bg-green-400", status: "completed" },
           { label: "Paused", color: "bg-yellow-300", status: "paused" },
@@ -226,14 +226,14 @@ export default function AdminDashboard() {
           <div
             key={item.label}
             onClick={() => setSelectedStatus(item.status)}
-            className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md ${
+            className={`flex items-center gap-2 cursor-pointer px-2 py-1 rounded-md text-sm ${
               selectedStatus === item.status
                 ? "ring-2 ring-offset-2 ring-gray-600 dark:ring-white"
                 : ""
             }`}
           >
-            <span className={`w-4 h-4 ${item.color} rounded-full`}></span>
-            <span className="text-sm font-medium">{item.label}</span>
+            <span className={`w-3 h-3 ${item.color} rounded-full`}></span>
+            <span className="font-medium">{item.label}</span>
           </div>
         ))}
 
@@ -244,166 +244,171 @@ export default function AdminDashboard() {
             setDateRange([null, null]);
             fetchTasks();
           }}
-          className="px-3 py-1 rounded-md bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 cursor-pointer"
+          className="px-3 py-1 rounded-md bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm"
         >
           Reset Filters
         </button>
       </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border mt-2 min-w-[700px] sm:min-w-0">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-gray-800 text-sm sm:text-base">
+              <th className="border p-3">User Name</th>
+              <th className="border p-3">Task Name</th>
+              <th className="border p-3">Status</th>
+              <th className="border p-3">Total Time</th>
+              <th className="border p-3">Start Date</th>
+              <th className="border p-3">End Date</th>
+              <th className="border p-3">Deadline</th>
+              <th className="border p-3">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedTasks.map((task) => {
+              const now = new Date();
+              const deadlineDate = task.deadline
+                ? new Date(task.deadline)
+                : undefined;
+              const isOverdue =
+                deadlineDate &&
+                deadlineDate.getTime() < now.getTime() &&
+                task.status !== "completed";
 
-      <table className="w-full border mt-2">
-        <thead>
-          <tr className="bg-gray-100 dark:bg-gray-800">
-            <th className="border p-3">User Name</th>
-            <th className="border p-3">Task Name</th>
-            <th className="border p-3">Status</th>
-            <th className="border p-3">Total Time</th>
-            <th className="border p-3">Start Date</th>
-            <th className="border p-3">End Date</th>
-            <th className="border p-3">Deadline</th>
-            <th className="border p-3">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedTasks.map((task) => {
-            const now = new Date();
-            const deadlineDate = task.deadline
-              ? new Date(task.deadline)
-              : undefined;
-            const isOverdue =
-              deadlineDate &&
-              deadlineDate.getTime() < now.getTime() &&
-              task.status !== "completed";
-
-            let rowColor = "";
-            if (isOverdue) rowColor = "bg-red-500 text-white";
-            else {
-              switch (task.status) {
-                case "completed":
-                  rowColor = "text-white bg-green-400";
-                  break;
-                case "paused":
-                  rowColor = "text-white bg-[#ffbd03]";
-                  break;
-                case "in-progress":
-                  rowColor = "text-white bg-blue-700";
-                  break;
+              let rowColor = "";
+              if (isOverdue) rowColor = "bg-red-500 text-white";
+              else {
+                switch (task.status) {
+                  case "completed":
+                    rowColor = "text-white bg-green-400";
+                    break;
+                  case "paused":
+                    rowColor = "text-white bg-[#ffbd03]";
+                    break;
+                  case "in-progress":
+                    rowColor = "text-white bg-blue-700";
+                    break;
+                }
               }
-            }
 
-            return (
-              <tr key={task._id} className="border-b">
-                <td className="border p-2 text-center">
-                  {task.userName || task.userId}
-                </td>
-                <td className="border p-2 text-center">{task.name}</td>
-                <td className={`border p-2 text-center capitalize ${rowColor}`}>
-                  {task.status}
-                </td>
-                <td className="border p-2 text-center font-medium">
-                  {formatTime(timerMap[task._id] || 0)}
-                </td>
-                <td className="border p-2 text-center">
-                  {task.startDate
-                    ? new Date(task.startDate).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-"}
-                </td>
-                <td className="border p-2 text-center">
-                  {task.endDate
-                    ? new Date(task.endDate).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-"}
-                </td>
-                <td className="border p-2 text-center">
-                  {task.deadline
-                    ? new Date(task.deadline).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-"}
-                  <div className="mt-1">
-                    <DatePicker
-                      selected={
-                        deadlinePicker[task._id]
-                          ? new Date(deadlinePicker[task._id]!)
-                          : task.deadline
-                          ? new Date(task.deadline)
-                          : null
-                      }
-                      onChange={(date: Date | null) => {
-                        if (date) {
-                          const selectedDate = new Date(date);
-                          const hasTime =
-                            selectedDate.getHours() !== 0 ||
-                            selectedDate.getMinutes() !== 0;
-                          if (!hasTime) selectedDate.setHours(17, 0, 0, 0);
-
-                          setDeadlinePicker((prev: any) => ({
-                            ...prev,
-                            [task._id]: selectedDate,
-                          }));
-
-                          setDeadline(task, selectedDate);
-                        }
-                      }}
-                      showTimeSelect
-                      timeFormat="HH:mm"
-                      timeIntervals={15}
-                      dateFormat="dd/MM/yyyy HH:mm"
-                      placeholderText="Select date & time"
-                      disabled={task.status === "completed"}
-                      openToDate={new Date(new Date().setHours(17, 0, 0, 0))}
-                      injectTimes={[new Date(new Date().setHours(17, 0, 0, 0))]}
-                      className="border text-sm p-1 rounded w-44 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </td>
-                <td className="border p-3 text-center">
-                  <button
-                    onClick={() => deleteTask(task._id)}
-                    className="px-4 py-1.5 text-sm font-semibold text-white bg-red-500 rounded-full hover:bg-red-600 cursor-pointer"
+              return (
+                <tr key={task._id} className="border-b text-xs sm:text-sm">
+                  <td className="border p-2 text-center">
+                    {task.userName || task.userId}
+                  </td>
+                  <td className="border p-2 text-center ">{task.name}</td>
+                  <td
+                    className={`border p-2 text-center capitalize ${rowColor}`}
                   >
-                    🗑 Delete
-                  </button>
+                    {task.status}
+                  </td>
+                  <td className="border p-2 text-center font-medium">
+                    {formatTime(timerMap[task._id] || 0)}
+                  </td>
+                  <td className="border p-2 text-center whitespace-nowrap">
+                    {task.startDate
+                      ? new Date(task.startDate).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "-"}
+                  </td>
+                  <td className="border p-2 text-center whitespace-nowrap">
+                    {task.endDate
+                      ? new Date(task.endDate).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "-"}
+                  </td>
+                  <td className="border p-2 text-center whitespace-nowrap">
+                    {task.deadline
+                      ? new Date(task.deadline).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "-"}
+                    <div className="mt-1">
+                      <DatePicker
+                        selected={
+                          deadlinePicker[task._id]
+                            ? new Date(deadlinePicker[task._id]!)
+                            : task.deadline
+                            ? new Date(task.deadline)
+                            : null
+                        }
+                        onChange={(date: Date | null) => {
+                          if (date) {
+                            const selectedDate = new Date(date);
+                            const hasTime =
+                              selectedDate.getHours() !== 0 ||
+                              selectedDate.getMinutes() !== 0;
+                            if (!hasTime) selectedDate.setHours(17, 0, 0, 0);
+
+                            setDeadlinePicker((prev: any) => ({
+                              ...prev,
+                              [task._id]: selectedDate,
+                            }));
+
+                            setDeadline(task, selectedDate);
+                          }
+                        }}
+                        showTimeSelect
+                        timeFormat="HH:mm"
+                        timeIntervals={15}
+                        dateFormat="dd/MM/yyyy HH:mm"
+                        placeholderText="Select date & time"
+                        disabled={task.status === "completed"}
+                        openToDate={new Date(new Date().setHours(17, 0, 0, 0))}
+                        injectTimes={[
+                          new Date(new Date().setHours(17, 0, 0, 0)),
+                        ]}
+                        className="border text-xs sm:text-sm p-1 rounded w-full sm:w-44 text-center mt-1 dark:text-white dark:bg-gray-800 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  </td>
+                  <td className="border p-2 sm:p-3 text-center">
+                    <button
+                      onClick={() => deleteTask(task._id)}
+                      className="px-3 sm:px-4 py-1 text-xs sm:text-sm font-semibold text-white bg-red-500 rounded-full hover:bg-red-600"
+                    >
+                      🗑 Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+
+            {filteredTasks.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="border p-4 text-center text-gray-500 dark:text-white text-sm"
+                >
+                  No tasks found for the selected filters
                 </td>
               </tr>
-            );
-          })}
-
-          {filteredTasks.length === 0 && (
-            <tr>
-              <td
-                colSpan={8}
-                className="border p-4 text-center text-gray-500 dark:text-white"
-              >
-                No tasks found for the selected filters
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      </div>
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-3 mt-6">
+        <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 mt-6 text-sm sm:text-base">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-3 sm:px-4 py-2 rounded-lg ${
               currentPage === 1
                 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700"
@@ -416,7 +421,7 @@ export default function AdminDashboard() {
             <button
               key={i + 1}
               onClick={() => setCurrentPage(i + 1)}
-              className={`px-3 py-1 rounded-lg ${
+              className={`px-2 sm:px-3 py-1 rounded-lg ${
                 currentPage === i + 1
                   ? "bg-blue-700 text-white"
                   : "bg-gray-200 dark:bg-gray-700"
@@ -429,7 +434,7 @@ export default function AdminDashboard() {
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-3 sm:px-4 py-2 rounded-lg ${
               currentPage === totalPages
                 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700"
