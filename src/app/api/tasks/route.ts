@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
     const tasks = db.collection("tasks");
-
+   
     await tasks.createIndex({ deleteAt: 1 }, { expireAfterSeconds: 0 });
 
     const existing = await tasks.findOne({ userId, name });
@@ -69,6 +69,12 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "pending":
+         if (existing) {
+          return NextResponse.json(
+            { message: `Task "${name}" already exists for this user.` },
+            { status: 409 }
+          );
+        }
         await tasks.updateOne(
           { userId, name },
           {

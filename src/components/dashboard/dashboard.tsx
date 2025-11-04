@@ -110,9 +110,9 @@ export default function UserTaskManager() {
       });
 
       fetchTasks();
-    } catch (err) {
+    } catch (err:any) {
       console.error(err);
-      toast.error("Error updating task");
+      toast.error(err?.response?.data?.message);
     }
   };
 
