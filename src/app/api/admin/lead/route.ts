@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { name, startDate, nextFollowUp, status } = await req.json();
+    const { name, startDate, nextFollowUp, status, price } = await req.json();
 
     if (!name || !status) {
       return NextResponse.json(
@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
 
     const existingLead = await leadsCollection.findOne({ name });
 
-    const nextFollowUpObj:any = nextFollowUp ? new Date(nextFollowUp) : null;
+    // Validate optional date fields
+    const nextFollowUpObj: any = nextFollowUp ? new Date(nextFollowUp) : null;
     if (nextFollowUp && isNaN(nextFollowUpObj.getTime())) {
       return NextResponse.json(
         { message: "Invalid nextFollowUp date format" },
@@ -32,12 +33,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ If lead exists → update it
     if (existingLead) {
       const updateFields: any = {
         status,
         updatedAt: new Date(),
       };
+
       if (nextFollowUpObj) updateFields.nextFollowUp = nextFollowUpObj;
+      if (price !== undefined) updateFields.price = Number(price);
 
       await leadsCollection.updateOne({ name }, { $set: updateFields });
 
@@ -46,6 +50,8 @@ export async function POST(req: NextRequest) {
         { status: 200 }
       );
     }
+
+    // ✅ If lead doesn’t exist → create it
     if (!startDate) {
       return NextResponse.json(
         { message: "startDate is required when creating a new lead" },
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
       startDate: startDateObj,
       nextFollowUp: nextFollowUpObj || null,
       status,
+      price: price ? Number(price) : 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

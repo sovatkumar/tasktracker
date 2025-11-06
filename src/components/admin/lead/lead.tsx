@@ -1,6 +1,6 @@
 "use client";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
@@ -14,6 +14,7 @@ type Lead = {
   nextFollowUp?: string;
   startDate?: string;
   createdAt?: string;
+  price?: number;
 };
 
 type LeadFormInputs = {
@@ -29,7 +30,10 @@ export default function LeadManager() {
   } = useForm<LeadFormInputs>();
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [priceUpdates, setPriceUpdates] = useState<Record<string, number>>({});
   const token = Cookies.get("token");
+
+  const debounceRefs = useRef<Record<string, NodeJS.Timeout>>({});
 
   const fetchLeads = async () => {
     try {
@@ -37,7 +41,7 @@ export default function LeadManager() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLeads(res.data.leads || []);
-    } catch (error: any) {
+    } catch {
       toast.error("Failed to load leads");
     }
   };
@@ -54,6 +58,7 @@ export default function LeadManager() {
           name: data.title,
           startDate: new Date(),
           status: "pending",
+          price: 0,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -76,23 +81,41 @@ export default function LeadManager() {
           name: updates.title || updates.name,
           status: updates.status,
           nextFollowUp: updates.nextFollowUp,
+          price: updates.price,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      toast.success("Lead updated!");
       fetchLeads();
-    } catch (error: any) {
+    } catch {
       toast.error("Failed to update lead");
     }
+  };
+
+  const handlePriceChange = (lead: Lead, newPrice: number) => {
+    setPriceUpdates((prev) => ({ ...prev, [lead._id]: newPrice }));
+
+    if (debounceRefs.current[lead._id]) {
+      clearTimeout(debounceRefs.current[lead._id]);
+    }
+
+    debounceRefs.current[lead._id] = setTimeout(() => {
+      handleUpdate(lead._id, {
+        title: lead.title || lead.name,
+        status: lead.status,
+        nextFollowUp: lead.nextFollowUp,
+        price: newPrice,
+      });
+      toast.success("Price updated!");
+    }, 800);
   };
 
   const deleteLead = async (leadId: string) => {
     const result = await Swal.fire({
       title: "Are you sure?",
-      text: "This will permanently delete the task!",
+      text: "This will permanently delete the lead!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -103,14 +126,12 @@ export default function LeadManager() {
     if (!result.isConfirmed) return;
 
     try {
-      const token = Cookies.get("token");
       await axios.delete(`/api/admin/lead?leadId=${leadId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLeads((prev) => prev.filter((lead) => lead._id !== leadId));
       Swal.fire("Deleted!", "The Lead has been removed.", "success");
-    } catch (err) {
-      console.error("Error deleting task:", err);
+    } catch {
       Swal.fire("Error!", "Failed to delete the Lead.", "error");
     }
   };
@@ -134,9 +155,11 @@ export default function LeadManager() {
           Create Lead
         </button>
       </form>
+
       {errors.title && (
         <p className="text-red-500 text-sm mb-4">{errors.title.message}</p>
       )}
+
       <div>
         <h2 className="text-lg font-semibold mb-4">Lead List</h2>
         {leads.length === 0 ? (
@@ -150,6 +173,7 @@ export default function LeadManager() {
                   <th className="border p-2">Status</th>
                   <th className="border p-2">Start Date</th>
                   <th className="border p-2">Next Follow-Up</th>
+                  <th className="border p-2">Price</th>
                   <th className="border p-2">Action</th>
                 </tr>
               </thead>
@@ -157,6 +181,7 @@ export default function LeadManager() {
                 {leads.map((lead) => (
                   <tr key={lead._id} className="text-center">
                     <td className="border p-2">{lead.title || lead.name}</td>
+
                     <td className="border p-2">
                       <select
                         value={lead.status}
@@ -175,11 +200,13 @@ export default function LeadManager() {
                         <option value="close">Close</option>
                       </select>
                     </td>
+
                     <td className="border p-2 text-gray-500 dark:text-white text-xs">
                       {lead.startDate
                         ? new Date(lead.startDate).toLocaleDateString()
                         : "-"}
                     </td>
+
                     <td className="border p-2 dark:text-white">
                       <input
                         type="date"
@@ -195,9 +222,29 @@ export default function LeadManager() {
                             status: lead.status,
                           })
                         }
-                        className="p-1 rounded border dark:text-white dark:scheme-dark"
+                        className="p-1 rounded border dark:text-white dark:bg-black dark:scheme-dark"
                       />
                     </td>
+
+                    <td className="border p-2">
+                      <div className="relative flex items-center justify-center">
+                        <span className="absolute left-2 text-gray-500 dark:text-gray-300">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          value={
+                            priceUpdates[lead._id] ??
+                            (lead.price !== undefined ? lead.price : 0)
+                          }
+                          onChange={(e) =>
+                            handlePriceChange(lead, Number(e.target.value || 0))
+                          }
+                          className="w-28 pl-5 p-1 text-center rounded border dark:text-white dark:bg-black"
+                        />
+                      </div>
+                    </td>
+
                     <td className="border p-2">
                       <button
                         onClick={() => deleteLead(lead._id)}
