@@ -75,7 +75,7 @@ export default function LeadManager() {
 
   const handleUpdate = async (leadId: string, updates: Partial<Lead>) => {
     try {
-      await axios.post(
+      const response = await axios.post(
         "/api/admin/lead",
         {
           name: updates.title || updates.name,
@@ -87,7 +87,7 @@ export default function LeadManager() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
+      toast.success(response.data.message)
       fetchLeads();
     } catch {
       toast.error("Failed to update lead");
@@ -108,7 +108,6 @@ export default function LeadManager() {
         nextFollowUp: lead.nextFollowUp,
         price: newPrice,
       });
-      toast.success("Price updated!");
     }, 800);
   };
 
