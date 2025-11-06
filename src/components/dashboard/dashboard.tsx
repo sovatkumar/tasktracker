@@ -54,9 +54,9 @@ export default function UserTaskManager() {
       setUserId(decoded?.userId);
     }
   }, []);
-useEffect(() => {
-  setCurrentPage(1);
-}, [statusFilter, startDate, endDate, debouncedSearch]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, startDate, endDate, debouncedSearch]);
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
     return () => clearTimeout(handler);
