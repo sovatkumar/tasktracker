@@ -36,6 +36,10 @@ export default function UserTaskManager() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [startDate, endDate] = dateRange;
 
+  // ✅ Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const tasksPerPage = 5;
+
   const {
     register,
     handleSubmit,
@@ -50,7 +54,9 @@ export default function UserTaskManager() {
       setUserId(decoded?.userId);
     }
   }, []);
-
+useEffect(() => {
+  setCurrentPage(1);
+}, [statusFilter, startDate, endDate, debouncedSearch]);
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
     return () => clearTimeout(handler);
@@ -64,6 +70,7 @@ export default function UserTaskManager() {
 
       const res = await axios.get("/api/tasks", { params });
       setTasks(res.data.tasks || []);
+      setCurrentPage(1); // reset to page 1 when data changes
     } catch (err) {
       console.error(err);
       toast.error("Failed to load tasks");
@@ -92,7 +99,7 @@ export default function UserTaskManager() {
   }, [tasks]);
 
   const handleAction = async (
-    name: string,
+    task: Partial<Task> | string,
     action: "start" | "stop" | "complete" | "pending"
   ) => {
     if (!userId) return toast.error("User not found");
@@ -101,18 +108,29 @@ export default function UserTaskManager() {
       const now = new Date();
       const currentTime = now.toLocaleTimeString("en-GB", { hour12: false });
 
-      await axios.post("/api/tasks", {
-        userId,
-        name,
-        action,
-        ...(action === "start" && { startDate: now, startTime: currentTime }),
-        ...(action === "complete" && { endDate: now }),
-      });
+      const payload: any =
+        typeof task === "string"
+          ? { userId, name: task, action }
+          : {
+              userId,
+              name: task.name,
+              taskId: task._id,
+              action,
+            };
 
+      if (action === "start") {
+        payload.startDate = now;
+        payload.startTime = currentTime;
+      }
+      if (action === "complete") {
+        payload.endDate = now;
+      }
+
+      await axios.post("/api/tasks", payload);
       fetchTasks();
-    } catch (err:any) {
+    } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message);
+      toast.error(err?.response?.data?.message || "Action failed");
     }
   };
 
@@ -143,9 +161,16 @@ export default function UserTaskManager() {
       match = matchesStart || matchesEnd;
     }
     if (statusFilter !== "all" && task.status !== statusFilter) return false;
-
     return match;
   });
+
+  // ✅ Pagination logic (frontend only)
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const indexOfLastTask = currentPage * tasksPerPage;
+  const indexOfFirstTask = indexOfLastTask - tasksPerPage;
+  const currentTasks = filteredTasks.slice(indexOfFirstTask, indexOfLastTask);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
     <div className="max-w-5xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
@@ -165,7 +190,7 @@ export default function UserTaskManager() {
             }
             isClearable
             placeholderText="Select date range"
-            className="border p-2 rounded w-full  dark:text-white"
+            className="border p-2 rounded w-full dark:text-white"
           />
         </div>
 
@@ -212,7 +237,7 @@ export default function UserTaskManager() {
       )}
 
       <div className="overflow-x-auto">
-        {filteredTasks.length > 0 ? (
+        {currentTasks.length > 0 ? (
           <table className="w-full border text-sm sm:text-base">
             <thead>
               <tr className="bg-gray-100 dark:bg-gray-800">
@@ -225,7 +250,7 @@ export default function UserTaskManager() {
               </tr>
             </thead>
             <tbody>
-              {filteredTasks.map((task) => (
+              {currentTasks.map((task) => (
                 <tr key={task._id}>
                   <td
                     className="border p-2 text-left truncate max-w-xs"
@@ -265,12 +290,12 @@ export default function UserTaskManager() {
                         })
                       : "-"}
                   </td>
-                  <td className="border p-2 text-center align-middle h-16">
+                  <td className="border p-2 text-center align-middle h-16 w-[200px]">
                     <div className="flex flex-wrap gap-2 justify-center items-center h-full">
                       {task.status !== "completed" ? (
                         <>
                           <button
-                            onClick={() => handleAction(task.name, "start")}
+                            onClick={() => handleAction(task, "start")}
                             disabled={task.status === "in-progress"}
                             className={`p-1 rounded text-white text-xs sm:text-sm ${
                               task.status === "in-progress"
@@ -281,7 +306,7 @@ export default function UserTaskManager() {
                             Start
                           </button>
                           <button
-                            onClick={() => handleAction(task.name, "stop")}
+                            onClick={() => handleAction(task, "stop")}
                             disabled={task.status !== "in-progress"}
                             className={`p-1 rounded text-white text-xs sm:text-sm ${
                               task.status !== "in-progress"
@@ -292,7 +317,7 @@ export default function UserTaskManager() {
                             Stop
                           </button>
                           <button
-                            onClick={() => handleAction(task.name, "complete")}
+                            onClick={() => handleAction(task, "complete")}
                             className="bg-green-600 text-white p-1 rounded text-xs sm:text-sm hover:bg-green-700"
                           >
                             Complete
@@ -315,6 +340,45 @@ export default function UserTaskManager() {
           </p>
         )}
       </div>
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-6 gap-2 flex-wrap">
+          <button
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded ${
+              currentPage === 1
+                ? "bg-gray-300 cursor-not-allowed dark:bg-gray-700"
+                : "bg-gray-800 text-white hover:bg-gray-700"
+            }`}
+          >
+            Prev
+          </button>
+          {[...Array(totalPages)].map((_, index) => (
+            <button
+              key={index}
+              onClick={() => paginate(index + 1)}
+              className={`px-3 py-1 rounded ${
+                currentPage === index + 1
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200  dark:bg-gray-700 "
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded ${
+              currentPage === totalPages
+                ? "bg-gray-300 cursor-not-allowed dark:bg-gray-700"
+                : "bg-gray-800 text-white hover:bg-gray-700"
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

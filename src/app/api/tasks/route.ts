@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../lib/mongodb";
+import { ObjectId } from "mongodb";
 
 // 🔹 Fetch Tasks
 export async function GET(req: NextRequest) {
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId, name, action, startDate, endDate, deadline } = await req.json();
+  const { userId, name, action, startDate, endDate, deadline, taskId } = await req.json();
 
   if (!userId || !name || !action)
     return NextResponse.json(
@@ -60,50 +61,48 @@ export async function POST(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
     const tasks = db.collection("tasks");
-   
-    await tasks.createIndex({ deleteAt: 1 }, { expireAfterSeconds: 0 });
 
-    const existing = await tasks.findOne({ userId, name });
-    let updateData: any = {};
+    await tasks.createIndex({ deleteAt: 1 }, { expireAfterSeconds: 0 });
     const now = new Date();
+
+    let filter: any = {};
+    let updateData: any = {};
 
     switch (action) {
       case "pending":
-         if (existing) {
-          return NextResponse.json(
-            { message: `Task "${name}" already exists for this user.` },
-            { status: 409 }
-          );
-        }
-        await tasks.updateOne(
-          { userId, name },
-          {
-            $setOnInsert: {
-              userId,
-              name,
-              status: "pending",
-              totalTime: 0,
-              lastStart: null,
-              createdAt: now,
-            },
-          },
-          { upsert: true }
-        );
-        break;
+        const insertTask = {
+          userId,
+          name,
+          status: "pending",
+          totalTime: 0,
+          lastStart: null,
+          createdAt: now,
+        };
+        const { insertedId } = await tasks.insertOne(insertTask);
+        return NextResponse.json({ taskId: insertedId, task: insertTask });
 
       case "start":
-        updateData = { status: "in-progress", lastStart: now };
-        if (!existing?.startDate)
-          updateData.startDate = startDate ? new Date(startDate) : now;
+        if (!taskId)
+          return NextResponse.json({ message: "taskId required" }, { status: 400 });
 
-        await tasks.updateOne({ userId, name }, { $set: updateData });
+        filter = { _id: new ObjectId(taskId) };
+        updateData = {
+          status: "in-progress",
+          lastStart: now,
+          ...(startDate && { startDate: new Date(startDate) }),
+        };
+        await tasks.updateOne(filter, { $set: updateData });
         break;
 
       case "stop":
-        if (existing?.lastStart) {
-          const elapsed = now.getTime() - new Date(existing.lastStart).getTime();
+        if (!taskId)
+          return NextResponse.json({ message: "taskId required" }, { status: 400 });
+
+        const existingStop = await tasks.findOne({ _id: new ObjectId(taskId) });
+        if (existingStop?.lastStart) {
+          const elapsed = now.getTime() - new Date(existingStop.lastStart).getTime();
           await tasks.updateOne(
-            { userId, name },
+            { _id: new ObjectId(taskId) },
             {
               $inc: { totalTime: elapsed },
               $set: { lastStart: null, status: "paused" },
@@ -113,18 +112,20 @@ export async function POST(req: NextRequest) {
         break;
 
       case "complete":
-        let total = existing?.totalTime || 0;
-        if (existing?.lastStart) {
-          total += now.getTime() - new Date(existing.lastStart).getTime();
-        }
+        if (!taskId)
+          return NextResponse.json({ message: "taskId required" }, { status: 400 });
+
+        const existingComplete = await tasks.findOne({ _id: new ObjectId(taskId) });
+        let total = existingComplete?.totalTime || 0;
+        if (existingComplete?.lastStart)
+          total += now.getTime() - new Date(existingComplete.lastStart).getTime();
 
         const endDateObj = endDate ? new Date(endDate) : now;
-
         const deleteAfter45Days = new Date(endDateObj);
         deleteAfter45Days.setDate(deleteAfter45Days.getDate() + 45);
 
         await tasks.updateOne(
-          { userId, name },
+          { _id: new ObjectId(taskId) },
           {
             $set: {
               status: "completed",
@@ -138,17 +139,15 @@ export async function POST(req: NextRequest) {
         break;
 
       case "set-deadline":
-        if (!deadline) {
+        if (!taskId || !deadline)
           return NextResponse.json(
-            { message: "Deadline date required" },
+            { message: "taskId and deadline required" },
             { status: 400 }
           );
-        }
+
         await tasks.updateOne(
-          { userId, name },
-          {
-            $set: { deadline: new Date(deadline) },
-          }
+          { _id: new ObjectId(taskId) },
+          { $set: { deadline: new Date(deadline) } }
         );
         break;
 
@@ -159,7 +158,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const updated = await tasks.findOne({ userId, name });
+    const updated = await tasks.findOne(filter);
     return NextResponse.json({ task: updated });
   } catch (error) {
     console.error("Error updating task:", error);
@@ -169,6 +168,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
 
 
