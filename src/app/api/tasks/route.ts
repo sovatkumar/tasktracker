@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
           totalTime: 0,
           lastStart: null,
           createdAt: now,
+          dailyLogs: [],
         };
         const { insertedId } = await tasks.insertOne(insertTask);
         return NextResponse.json({ taskId: insertedId, task: insertTask });
@@ -101,11 +102,20 @@ export async function POST(req: NextRequest) {
         const existingStop = await tasks.findOne({ _id: new ObjectId(taskId) });
         if (existingStop?.lastStart) {
           const elapsed = now.getTime() - new Date(existingStop.lastStart).getTime();
+          const today = now.toISOString().split("T")[0];
+          const dailyLogs = existingStop.dailyLogs || [];
+          const existingLogIndex = dailyLogs.findIndex((log: any) => log.date === today);
+          if (existingLogIndex >= 0) {
+            dailyLogs[existingLogIndex].timeSpent += elapsed;
+          } else {
+            dailyLogs.push({ date: today, timeSpent: elapsed });
+          }
+
           await tasks.updateOne(
             { _id: new ObjectId(taskId) },
             {
               $inc: { totalTime: elapsed },
-              $set: { lastStart: null, status: "paused" },
+              $set: { lastStart: null, status: "paused", dailyLogs },
             }
           );
         }
@@ -117,12 +127,25 @@ export async function POST(req: NextRequest) {
 
         const existingComplete = await tasks.findOne({ _id: new ObjectId(taskId) });
         let total = existingComplete?.totalTime || 0;
+        let additional = 0;
+
         if (existingComplete?.lastStart)
-          total += now.getTime() - new Date(existingComplete.lastStart).getTime();
+          additional = now.getTime() - new Date(existingComplete.lastStart).getTime();
+
+        total += additional;
 
         const endDateObj = endDate ? new Date(endDate) : now;
         const deleteAfter45Days = new Date(endDateObj);
         deleteAfter45Days.setDate(deleteAfter45Days.getDate() + 45);
+
+        const todayComplete = now.toISOString().split("T")[0];
+        const dailyLogsComplete = existingComplete?.dailyLogs || [];
+        const existingCompleteLog = dailyLogsComplete.findIndex((log: any) => log.date === todayComplete);
+        if (existingCompleteLog >= 0) {
+          dailyLogsComplete[existingCompleteLog].timeSpent += additional;
+        } else if (additional > 0) {
+          dailyLogsComplete.push({ date: todayComplete, timeSpent: additional });
+        }
 
         await tasks.updateOne(
           { _id: new ObjectId(taskId) },
@@ -133,6 +156,7 @@ export async function POST(req: NextRequest) {
               lastStart: null,
               endDate: endDateObj,
               deleteAt: deleteAfter45Days,
+              dailyLogs: dailyLogsComplete,
             },
           }
         );
