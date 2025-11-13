@@ -126,7 +126,7 @@ export default function AdminDashboard() {
         "/api/tasks",
         {
           userId: task.userId,
-          taskId:task?._id,
+          taskId: task?._id,
           name: task.name,
           action: "set-deadline",
           deadline: deadlineDate,

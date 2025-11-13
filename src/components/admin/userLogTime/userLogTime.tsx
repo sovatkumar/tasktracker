@@ -57,7 +57,8 @@ export default function UserLogTimePage() {
         if (task.status === "in-progress" && task.lastStart) {
           const lastStartDate = dayjs(task.lastStart).format("YYYY-MM-DD");
           if (lastStartDate === selectedDate) {
-            liveTime = new Date().getTime() - new Date(task.lastStart).getTime();
+            liveTime =
+              new Date().getTime() - new Date(task.lastStart).getTime();
           }
         }
 
@@ -66,7 +67,11 @@ export default function UserLogTimePage() {
 
         if (totalTaskTime > 0) {
           if (!logsByUser[user])
-            logsByUser[user] = { totalMs: 0, taskCount: 0, inProgressToday: false };
+            logsByUser[user] = {
+              totalMs: 0,
+              taskCount: 0,
+              inProgressToday: false,
+            };
 
           logsByUser[user].totalMs += totalTaskTime;
           logsByUser[user].taskCount += 1;
@@ -90,7 +95,8 @@ export default function UserLogTimePage() {
     return () => clearInterval(interval);
   }, [tasks, selectedDate]);
 
-  if (loading) return <div className="text-center py-10">Loading user logs...</div>;
+  if (loading)
+    return <div className="text-center py-10">Loading user logs...</div>;
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">

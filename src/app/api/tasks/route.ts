@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 
-// 🔹 Fetch Tasks
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   const startDate = req.nextUrl.searchParams.get("startDate");
@@ -49,7 +48,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId, name, action, startDate, endDate, deadline, taskId } = await req.json();
+  const { userId, name, action, startDate, endDate, deadline, taskId } =
+    await req.json();
 
   if (!userId || !name || !action)
     return NextResponse.json(
@@ -84,27 +84,40 @@ export async function POST(req: NextRequest) {
 
       case "start":
         if (!taskId)
-          return NextResponse.json({ message: "taskId required" }, { status: 400 });
+          return NextResponse.json(
+            { message: "taskId required" },
+            { status: 400 }
+          );
 
         filter = { _id: new ObjectId(taskId) };
+        const existingTask = await tasks.findOne(filter);
         updateData = {
           status: "in-progress",
           lastStart: now,
-          ...(startDate && { startDate: new Date(startDate) }),
+          // ...(startDate && { startDate: new Date(startDate) }),
         };
+        if (!existingTask?.startDate) {
+          updateData.startDate = startDate ? new Date(startDate) : now;
+        }
         await tasks.updateOne(filter, { $set: updateData });
         break;
 
       case "stop":
         if (!taskId)
-          return NextResponse.json({ message: "taskId required" }, { status: 400 });
+          return NextResponse.json(
+            { message: "taskId required" },
+            { status: 400 }
+          );
 
         const existingStop = await tasks.findOne({ _id: new ObjectId(taskId) });
         if (existingStop?.lastStart) {
-          const elapsed = now.getTime() - new Date(existingStop.lastStart).getTime();
+          const elapsed =
+            now.getTime() - new Date(existingStop.lastStart).getTime();
           const today = now.toISOString().split("T")[0];
           const dailyLogs = existingStop.dailyLogs || [];
-          const existingLogIndex = dailyLogs.findIndex((log: any) => log.date === today);
+          const existingLogIndex = dailyLogs.findIndex(
+            (log: any) => log.date === today
+          );
           if (existingLogIndex >= 0) {
             dailyLogs[existingLogIndex].timeSpent += elapsed;
           } else {
@@ -123,14 +136,20 @@ export async function POST(req: NextRequest) {
 
       case "complete":
         if (!taskId)
-          return NextResponse.json({ message: "taskId required" }, { status: 400 });
+          return NextResponse.json(
+            { message: "taskId required" },
+            { status: 400 }
+          );
 
-        const existingComplete = await tasks.findOne({ _id: new ObjectId(taskId) });
+        const existingComplete = await tasks.findOne({
+          _id: new ObjectId(taskId),
+        });
         let total = existingComplete?.totalTime || 0;
         let additional = 0;
 
         if (existingComplete?.lastStart)
-          additional = now.getTime() - new Date(existingComplete.lastStart).getTime();
+          additional =
+            now.getTime() - new Date(existingComplete.lastStart).getTime();
 
         total += additional;
 
@@ -140,11 +159,16 @@ export async function POST(req: NextRequest) {
 
         const todayComplete = now.toISOString().split("T")[0];
         const dailyLogsComplete = existingComplete?.dailyLogs || [];
-        const existingCompleteLog = dailyLogsComplete.findIndex((log: any) => log.date === todayComplete);
+        const existingCompleteLog = dailyLogsComplete.findIndex(
+          (log: any) => log.date === todayComplete
+        );
         if (existingCompleteLog >= 0) {
           dailyLogsComplete[existingCompleteLog].timeSpent += additional;
         } else if (additional > 0) {
-          dailyLogsComplete.push({ date: todayComplete, timeSpent: additional });
+          dailyLogsComplete.push({
+            date: todayComplete,
+            timeSpent: additional,
+          });
         }
 
         await tasks.updateOne(
@@ -192,7 +216,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-

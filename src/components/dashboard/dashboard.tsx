@@ -36,7 +36,6 @@ export default function UserTaskManager() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [startDate, endDate] = dateRange;
 
-  // ✅ Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 5;
 
@@ -70,7 +69,7 @@ export default function UserTaskManager() {
 
       const res = await axios.get("/api/tasks", { params });
       setTasks(res.data.tasks || []);
-      setCurrentPage(1); // reset to page 1 when data changes
+      setCurrentPage(1);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load tasks");
@@ -164,7 +163,6 @@ export default function UserTaskManager() {
     return match;
   });
 
-  // ✅ Pagination logic (frontend only)
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
   const indexOfLastTask = currentPage * tasksPerPage;
   const indexOfFirstTask = indexOfLastTask - tasksPerPage;

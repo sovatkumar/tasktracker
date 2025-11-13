@@ -76,7 +76,9 @@ export const UserList = () => {
         toast.success("✅ User updated successfully!");
         setIsModalOpen(false);
       } else if (res.status === 409) {
-        toast.error("❌ This email already exists. Please use a different one.");
+        toast.error(
+          "❌ This email already exists. Please use a different one."
+        );
       } else if (res.status === 400) {
         toast.error(data.message || "Please fill all required fields.");
       } else if (res.status === 401) {

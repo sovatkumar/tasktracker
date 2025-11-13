@@ -87,7 +87,7 @@ export default function LeadManager() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      toast.success(response.data.message)
+      toast.success(response.data.message);
       fetchLeads();
     } catch {
       toast.error("Failed to update lead");

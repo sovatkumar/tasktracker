@@ -136,10 +136,9 @@ export async function PUT(req: NextRequest) {
       const hashedPassword = await bcrypt.hash(password, 10);
       updateData.password = hashedPassword;
     }
-    const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: updateData }
-    );
+    const result = await db
+      .collection("users")
+      .updateOne({ _id: new ObjectId(userId) }, { $set: updateData });
 
     if (result.modifiedCount === 0) {
       return NextResponse.json(
@@ -157,4 +156,3 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
-

@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     const existingLead = await leadsCollection.findOne({ name });
 
-    // Validate optional date fields
     const nextFollowUpObj: any = nextFollowUp ? new Date(nextFollowUp) : null;
     if (nextFollowUp && isNaN(nextFollowUpObj.getTime())) {
       return NextResponse.json(
@@ -33,7 +32,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ If lead exists → update it
     if (existingLead) {
       const updateFields: any = {
         status,
@@ -51,7 +49,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ If lead doesn’t exist → create it
     if (!startDate) {
       return NextResponse.json(
         { message: "startDate is required when creating a new lead" },
@@ -116,7 +113,6 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
 
 export async function DELETE(req: NextRequest) {
   if (!authorize(req, "admin")) {
