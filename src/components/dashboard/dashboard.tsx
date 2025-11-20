@@ -315,8 +315,13 @@ export default function UserTaskManager() {
                             Stop
                           </button>
                           <button
+                            disabled={task.status == "pending"}
                             onClick={() => handleAction(task, "complete")}
-                            className="bg-green-600 text-white p-1 rounded text-xs sm:text-sm hover:bg-green-700"
+                            className={` text-white p-1 rounded text-xs sm:text-sm  ${
+                              task.status == "pending"
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-green-700 hover:bg-green-700"
+                            }`}
                           >
                             Complete
                           </button>
