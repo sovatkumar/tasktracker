@@ -70,7 +70,7 @@ export default function AdminAddTask() {
         name: data.taskName,
         assignedUsers: data.assignedUsers,
         deadline: data.deadline,
-        taskDetail:data?.taskDetail
+        taskDetail: data?.taskDetail,
       });
       toast.success("Task created successfully!");
       reset();
@@ -110,7 +110,7 @@ export default function AdminAddTask() {
             Task Description/Detail
           </label>
           <textarea
-          rows={6}
+            rows={6}
             {...register("taskDetail", { required: "taskDetail is required" })}
             placeholder="Enter task description"
             className="w-full border p-2 rounded dark:text-white"
@@ -170,6 +170,9 @@ export default function AdminAddTask() {
                 onChange={(date) => field.onChange(date)}
                 className="w-full border p-2 rounded dark:text-white"
                 disabled={submitting}
+                showTimeSelect
+                timeIntervals={5} // minute interval options (5, 10, 15 etc.)
+                dateFormat="MMM d, yyyy h:mm aa" // display format
               />
             )}
           />

@@ -9,196 +9,189 @@ interface User {
   email: string;
 }
 
+interface UserReminder {
+  sent1hr?: boolean;
+  sent30min?: boolean;
+  sentMissed?: boolean;
+  sentRemindersCount?: number;
+  reminder0?: Date | null;
+  reminder1?: Date | null;
+  reminder2?: Date | null;
+}
+
 interface Task {
   _id: ObjectId;
   name: string;
   deadline: string;
-  status: string;
-
-  sentRemindersCount?: number;
-  sent1hr?: boolean;
-  sent30min?: boolean;
-  sentMissed?: boolean;
-
-  reminder0?: Date;
-  reminder1?: Date;
-  reminder2?: Date;
-
-  createdAt?: Date;
-
   userId?: string | ObjectId;
   assignedUsers?: (string | ObjectId)[];
+  status: string;
+
+  reminders?: Record<string, UserReminder>;
 }
 
-async function getUsers(userIds: (string | ObjectId)[]) {
+async function getAllTasks(): Promise<Task[]> {
   const client = await clientPromise;
   const db = client.db();
-
-  const ids = userIds.map((id) =>
-    typeof id === "string" ? new ObjectId(id) : id
-  );
-
-  return db.collection<User>("users").find({ _id: { $in: ids } }).toArray();
+  return db.collection<Task>("tasks").find().toArray();
 }
+async function getUserById(userId: string | ObjectId): Promise<User | null> {
+  const client = await clientPromise;
+  const db = client.db();
+  const query =
+    typeof userId === "string"
+      ? { _id: new ObjectId(userId) }
+      : { _id: userId };
 
+  return db.collection<User>("users").findOne(query);
+}
+const sendTaskEmail = async (
+  usr: User,
+  task: Task,
+  subject: string,
+  messageBody: string
+) => {
+  console.log(`[SEND EMAIL] → ${usr.email} | Subject: ${subject}`);
+
+  await sendEmail(usr.email, subject, {
+    title: subject,
+    message: `Hello ${usr.name}, ${messageBody} "<strong>${
+      task.name
+    }</strong>" which is due at <strong>${new Date(
+      task.deadline
+    ).toLocaleString()}</strong>.`,
+  });
+};
 export function startTaskReminderCron() {
   console.log("Starting Task Reminder Cron...");
 
   cron.schedule("*/1 * * * *", async () => {
-    const now = new Date();
-    console.log(
-      `\n[CRON RUN] ${now.toLocaleString()} - Checking tasks for reminders...`
-    );
+    try {
+      const now = new Date();
+      console.log(`[CRON] Triggered at: ${now.toLocaleString()}`);
 
-    const client = await clientPromise;
-    const db = client.db();
+      const tasks = await getAllTasks();
 
-    const tasks: any = await db.collection<Task>("tasks").find().toArray();
+      for (const task of tasks) {
+        if (task.status === "completed") continue;
 
-    for (const task of tasks) {
-      if (task.status === "completed") continue;
+        const deadline = new Date(task.deadline);
+        const timeLeftMs = deadline.getTime() - now.getTime();
+        const timeLeftMinutes = timeLeftMs / 1000 / 60;
+        const timeLeftHours = timeLeftMs / 1000 / 60 / 60;
+        const userIdsSet = new Set<string>();
+        if (task.userId) userIdsSet.add(task.userId.toString());
+        task.assignedUsers?.forEach((u) => userIdsSet.add(u.toString()));
 
-      const deadline = new Date(task.deadline);
-      const timeLeftMs = deadline.getTime() - now.getTime();
-      const timeLeftMinutes = timeLeftMs / 1000 / 60;
-      const timeLeftHours = timeLeftMs / 1000 / 60 / 60;
-
-      const sentCount = task.sentRemindersCount ?? 0;
-
-      const users = await getUsers([
-        ...(task.userId ? [task.userId] : []),
-        ...(task.assignedUsers || []),
-      ]);
-
-      const sendToAll = async (subject: string, message: string) => {
-        for (const usr of users) {
-          console.log(
-            `[SEND EMAIL] ${subject} → ${usr.email} | Task: "${task.name}"`
-          );
-          await sendEmail(usr.email, subject, {
-            title: subject,
-            message,
-          });
-        }
-      };
-
-      console.log(
-        `\n[TASK CHECK] ${task.name}\nDeadline: ${deadline.toLocaleString()}\nTime Left: ${timeLeftHours.toFixed(
-          2
-        )} hours`
-      );
-
-      // ---------------------------------------
-      // MISSED DEADLINE
-      // ---------------------------------------
-      if (timeLeftMs <= 0 && !task.sentMissed) {
-        console.log(`[MISSED DEADLINE] Sending missed email...`);
-        await sendToAll(
-          "Missed Task Deadline",
-          `You missed the deadline for <strong>${task.name}</strong>.`
-        );
-
-        await db
-          .collection("tasks")
-          .updateOne({ _id: task._id }, { $set: { sentMissed: true } });
-
-        continue;
-      }
-
-      // ---------------------------------------
-      // 1 HOUR REMINDER
-      // ---------------------------------------
-      if (timeLeftMinutes <= 60 && timeLeftMinutes > 30 && !task.sent1hr) {
-        console.log(`[1 HOUR REMINDER] Sending 1hr before email...`);
-
-        await sendToAll(
-          "1 Hour Remaining",
-          `Only <strong>1 hour</strong> left for task <strong>${task.name}</strong>!`
-        );
-
-        await db
-          .collection("tasks")
-          .updateOne({ _id: task._id }, { $set: { sent1hr: true } });
-      }
-
-      // ---------------------------------------
-      // 30 MIN REMINDER
-      // ---------------------------------------
-      if (timeLeftMinutes <= 30 && timeLeftMinutes > 0 && !task.sent30min) {
-        console.log(`[30 MIN REMINDER] Sending 30min before email...`);
-
-        await sendToAll(
-          "30 Minutes Remaining",
-          `Only <strong>30 minutes</strong> left for task <strong>${task.name}</strong>!`
-        );
-
-        await db
-          .collection("tasks")
-          .updateOne({ _id: task._id }, { $set: { sent30min: true } });
-      }
-
-      // ---------------------------------------
-      // SPACED REMINDERS (8–8–8 hours or dynamic)
-      // ---------------------------------------
-      if (timeLeftMinutes > 60 && sentCount < 3) {
-        let gapHours;
-
-        if (timeLeftHours >= 24) {
-          gapHours = 8;
-          console.log(`[REMINDER] Using fixed 8-hour gap (deadline > 24h).`);
-        } else {
-          const remaining = 3 - sentCount;
-          gapHours = timeLeftHours / remaining;
-          console.log(
-            `[REMINDER] Dynamic gap: ${gapHours.toFixed(
-              2
-            )} hours (deadline < 24h).`
-          );
-        }
-
-        const lastReminder =
-          task[`reminder${sentCount}`] || task.createdAt || task.deadline;
-
-        const hoursSinceLast =
-          (now.getTime() - new Date(lastReminder).getTime()) / 1000 / 60 / 60;
+        const userIds = Array.from(userIdsSet);
 
         console.log(
-          `[REMINDER CHECK] Hours since last reminder: ${hoursSinceLast.toFixed(
-            2
-          )} / Required gap: ${gapHours}`
+          `[TASK USERS] Task "${task.name}" has users: ${userIds.join(", ")}`
         );
 
-        const nextReminderTime = new Date(
-          new Date(lastReminder).getTime() + gapHours * 3600 * 1000
-        );
+        if (!task.reminders) task.reminders = {};
 
-        console.log(
-          `[NEXT REMINDER EXPECTED] ${nextReminderTime.toLocaleString()}`
-        );
+        for (const userId of userIds) {
+          const usr = await getUserById(userId);
+          if (!usr) continue;
 
-        if (hoursSinceLast >= gapHours) {
           console.log(
-            `[SENDING REMINDER] Sending reminder #${sentCount + 1} of 3`
+            `[PROCESSING] Task "${task.name}" | Checking for user: ${usr.email}`
           );
 
-          await sendToAll(
-            "Task Deadline Reminder",
-            `Reminder ${sentCount + 1} of 3: Task <strong>${
-              task.name
-            }</strong> is due at <strong>${deadline.toLocaleString()}</strong>.`
-          );
+          if (!task.reminders[userId]) {
+            task.reminders[userId] = {
+              sent1hr: false,
+              sent30min: false,
+              sentMissed: false,
+              sentRemindersCount: 0,
+              reminder0: null,
+              reminder1: null,
+              reminder2: null,
+            };
+          }
 
-          await db.collection("tasks").updateOne(
-            { _id: task._id },
-            {
-              $set: {
-                [`reminder${sentCount}`]: now,
-                sentRemindersCount: sentCount + 1,
-              },
+          const r: any = task.reminders[userId];
+
+          let nextReminderIn: string | null = null;
+
+          if (timeLeftMs <= 0 && !r.sentMissed) {
+            await sendTaskEmail(
+              usr,
+              task,
+              "Task Deadline Missed",
+              "you missed the deadline for task"
+            );
+            r.sentMissed = true;
+          }
+
+          if (timeLeftMinutes <= 60 && timeLeftMinutes > 30 && !r.sent1hr) {
+            await sendTaskEmail(
+              usr,
+              task,
+              "1 Hour Remaining",
+              "only 1 hour left for task"
+            );
+            r.sent1hr = true;
+          }
+
+          if (timeLeftMinutes <= 30 && timeLeftMinutes > 0 && !r.sent30min) {
+            await sendTaskEmail(
+              usr,
+              task,
+              "30 Minutes Remaining",
+              "only 30 minutes left for task"
+            );
+            r.sent30min = true;
+          }
+
+          if (timeLeftHours > 1 && r.sentRemindersCount! < 3) {
+            let gapHours = 1;
+            if (timeLeftHours >= 24) gapHours = 8;
+            else if (timeLeftHours >= 3) gapHours = 3;
+
+            const lastKey = `reminder${r.sentRemindersCount}`;
+            const lastReminder = r[lastKey] || task.deadline;
+            const hoursSinceLast =
+              (now.getTime() - new Date(lastReminder).getTime()) /
+              1000 /
+              60 /
+              60;
+
+            if (hoursSinceLast >= gapHours) {
+              await sendTaskEmail(
+                usr,
+                task,
+                "Task Deadline Reminder",
+                `Reminder ${r.sentRemindersCount! + 1} of 3 for task`
+              );
+
+              r[lastKey] = now;
+              r.sentRemindersCount!++;
             }
+          }
+
+          console.log(
+            `[NEXT] Task "${task.name}" → next mail for ${usr.email}: ${
+              nextReminderIn ?? "done"
+            }`
           );
         }
+
+        const client = await clientPromise;
+        const db = client.db();
+        await db
+          .collection("tasks")
+          .updateOne(
+            { _id: task._id },
+            { $set: { reminders: task.reminders } }
+          );
       }
+
+      console.log(`[CRON] Cycle finished at: ${new Date().toLocaleString()}`);
+      console.log("------------------------------------------------\n");
+    } catch (err) {
+      console.error("[CRON] Error:", err);
     }
   });
 }
