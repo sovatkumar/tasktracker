@@ -278,10 +278,10 @@ export default function UserTask() {
                     {task.status}
                   </td>
 
-                  <td className="border p-2 text-center font-medium w-[400px]">
+                  <td className="border p-2 text-center font-medium">
                     {formatTime(timerMap[task._id] || 0)}
                   </td>
-                  <td className="border text-center w-2xl cursor-pointer px-2 py-2">
+                  <td className="border text-center cursor-pointer px-2 py-2">
                     {task.taskDetail ? (
                       <div className="relative w-full max-w-[220px]">
                         <p
