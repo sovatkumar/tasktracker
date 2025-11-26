@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
+import { sendEmail } from "@/app/lib/sendEmail";
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
@@ -14,7 +15,11 @@ export async function GET(req: NextRequest) {
   try {
     const client = await clientPromise;
     const db = client.db();
-    const query: any = { userId };
+
+    const userObjectId = new ObjectId(userId);
+    const query: any = {
+      $or: [{ userId: userId }, { assignedUsers: { $in: [userObjectId] } }],
+    };
 
     if (search) {
       query.name = { $regex: search, $options: "i" };
@@ -25,9 +30,13 @@ export async function GET(req: NextRequest) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
-      query.$or = [
-        { startDate: { $gte: start, $lte: end } },
-        { endDate: { $gte: start, $lte: end } },
+      query.$and = [
+        {
+          $or: [
+            { deadline: { $gte: start, $lte: end } },
+            { createdAt: { $gte: start, $lte: end } },
+          ],
+        },
       ];
     }
 
@@ -48,10 +57,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId, name, action, startDate, endDate, deadline, taskId } =
-    await req.json();
+  const {
+    userId,
+    name,
+    action,
+    startDate,
+    endDate,
+    deadline,
+    taskId,
+    assignedUserIds,
+  } = await req.json();
 
-  if (!userId || !name || !action)
+  if (!name || !action)
     return NextResponse.json(
       { message: "Missing required fields" },
       { status: 400 }
@@ -61,6 +78,7 @@ export async function POST(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
     const tasks = db.collection("tasks");
+    const users = db.collection("users");
 
     await tasks.createIndex({ deleteAt: 1 }, { expireAfterSeconds: 0 });
     const now = new Date();
@@ -70,6 +88,12 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "pending":
+        if (!userId)
+          return NextResponse.json(
+            { message: "userId required for creating task" },
+            { status: 400 }
+          );
+
         const insertTask = {
           userId,
           name,
@@ -78,8 +102,10 @@ export async function POST(req: NextRequest) {
           lastStart: null,
           createdAt: now,
           dailyLogs: [],
+          assignedUsers: assignedUserIds || [],
         };
         const { insertedId } = await tasks.insertOne(insertTask);
+        console.log("Created new task:", insertTask);
         return NextResponse.json({ taskId: insertedId, task: insertTask });
 
       case "start":
@@ -91,15 +117,14 @@ export async function POST(req: NextRequest) {
 
         filter = { _id: new ObjectId(taskId) };
         const existingTask = await tasks.findOne(filter);
-        updateData = {
-          status: "in-progress",
-          lastStart: now,
-          // ...(startDate && { startDate: new Date(startDate) }),
-        };
+        updateData = { status: "in-progress", lastStart: now };
+
         if (!existingTask?.startDate) {
           updateData.startDate = startDate ? new Date(startDate) : now;
         }
+
         await tasks.updateOne(filter, { $set: updateData });
+        console.log("Task started:", updateData);
         break;
 
       case "stop":
@@ -115,14 +140,12 @@ export async function POST(req: NextRequest) {
             now.getTime() - new Date(existingStop.lastStart).getTime();
           const today = now.toISOString().split("T")[0];
           const dailyLogs = existingStop.dailyLogs || [];
-          const existingLogIndex = dailyLogs.findIndex(
+          const logIndex = dailyLogs.findIndex(
             (log: any) => log.date === today
           );
-          if (existingLogIndex >= 0) {
-            dailyLogs[existingLogIndex].timeSpent += elapsed;
-          } else {
-            dailyLogs.push({ date: today, timeSpent: elapsed });
-          }
+
+          if (logIndex >= 0) dailyLogs[logIndex].timeSpent += elapsed;
+          else dailyLogs.push({ date: today, timeSpent: elapsed });
 
           await tasks.updateOne(
             { _id: new ObjectId(taskId) },
@@ -144,12 +167,14 @@ export async function POST(req: NextRequest) {
         const existingComplete = await tasks.findOne({
           _id: new ObjectId(taskId),
         });
+
         let total = existingComplete?.totalTime || 0;
         let additional = 0;
 
-        if (existingComplete?.lastStart)
+        if (existingComplete?.lastStart) {
           additional =
             now.getTime() - new Date(existingComplete.lastStart).getTime();
+        }
 
         total += additional;
 
@@ -157,19 +182,15 @@ export async function POST(req: NextRequest) {
         const deleteAfter45Days = new Date(endDateObj);
         deleteAfter45Days.setDate(deleteAfter45Days.getDate() + 45);
 
-        const todayComplete = now.toISOString().split("T")[0];
-        const dailyLogsComplete = existingComplete?.dailyLogs || [];
-        const existingCompleteLog = dailyLogsComplete.findIndex(
-          (log: any) => log.date === todayComplete
+        const todayComp = now.toISOString().split("T")[0];
+        const dailyLogsComp = existingComplete?.dailyLogs || [];
+        const compIndex = dailyLogsComp.findIndex(
+          (log: any) => log.date === todayComp
         );
-        if (existingCompleteLog >= 0) {
-          dailyLogsComplete[existingCompleteLog].timeSpent += additional;
-        } else if (additional > 0) {
-          dailyLogsComplete.push({
-            date: todayComplete,
-            timeSpent: additional,
-          });
-        }
+
+        if (compIndex >= 0) dailyLogsComp[compIndex].timeSpent += additional;
+        else if (additional > 0)
+          dailyLogsComp.push({ date: todayComp, timeSpent: additional });
 
         await tasks.updateOne(
           { _id: new ObjectId(taskId) },
@@ -180,12 +201,12 @@ export async function POST(req: NextRequest) {
               lastStart: null,
               endDate: endDateObj,
               deleteAt: deleteAfter45Days,
-              dailyLogs: dailyLogsComplete,
+              dailyLogs: dailyLogsComp,
             },
           }
         );
+        console.log("Task completed:", { total, dailyLogsComp });
         break;
-
       case "set-deadline":
         if (!taskId || !deadline)
           return NextResponse.json(
@@ -193,10 +214,79 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
 
+        const task = await tasks.findOne({ _id: new ObjectId(taskId) });
+
+        if (!task)
+          return NextResponse.json(
+            { message: "Task not found" },
+            { status: 404 }
+          );
+
+        console.log("Updating deadline for task:", task);
+
+        const oldDeadline = task.deadline;
+        const newDeadline = new Date(deadline);
+        const updateFields: any = { deadline: newDeadline };
+        if (
+          assignedUserIds &&
+          Array.isArray(assignedUserIds) &&
+          assignedUserIds.length > 0
+        ) {
+          updateFields.assignedUsers = assignedUserIds.map(
+            (id: string) => new ObjectId(id)
+          );
+        }
+
         await tasks.updateOne(
           { _id: new ObjectId(taskId) },
-          { $set: { deadline: new Date(deadline) } }
+          { $set: updateFields }
         );
+
+        console.log(
+          "Task updated with new deadline and assigned users:",
+          updateFields
+        );
+        const isUpdate = !!oldDeadline;
+
+        let allUsers: any[] = [];
+        if (task.userId) {
+          const creator = await users.findOne({
+            _id: new ObjectId(task.userId),
+          });
+          if (creator) allUsers.push(creator);
+        }
+        const assignedIds =
+          updateFields.assignedUsers || task.assignedUsers || [];
+        if (assignedIds.length > 0) {
+          const assignedUsersList = await users
+            .find({ _id: { $in: assignedIds } })
+            .toArray();
+          allUsers = [...allUsers, ...assignedUsersList];
+        }
+        const seen = new Set();
+        allUsers = allUsers.filter((u) => {
+          if (seen.has(u._id.toString())) return false;
+          seen.add(u._id.toString());
+          return true;
+        });
+
+        console.log(
+          "Sending emails to users:",
+          allUsers.map((u) => u.email)
+        );
+
+        for (const usr of allUsers) {
+          await sendEmail(
+            usr.email,
+            isUpdate ? "Task Deadline Updated" : "New Task Deadline Added",
+            {
+              title: isUpdate ? "Task Deadline Updated" : "New Task Assigned",
+              message: `Hello ${usr.name},<br><br>
+                The task "<strong>${task.name}</strong>" has a new deadline:<br>
+                <strong>${newDeadline.toLocaleString()}</strong>`,
+            }
+          );
+        }
         break;
 
       default:
@@ -206,7 +296,10 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const updated = await tasks.findOne(filter);
+    const updated = taskId
+      ? await tasks.findOne({ _id: new ObjectId(taskId) })
+      : null;
+
     return NextResponse.json({ task: updated });
   } catch (error) {
     console.error("Error updating task:", error);

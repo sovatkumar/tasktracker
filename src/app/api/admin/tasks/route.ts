@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../../lib/mongodb";
 import { authorize } from "../../../lib/auth";
 import { ObjectId } from "mongodb";
-
+import { sendEmail } from "@/app/lib/sendEmail";
 export async function GET(req: NextRequest) {
   if (!authorize(req, "admin")) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -22,29 +22,44 @@ export async function GET(req: NextRequest) {
       query.startDate = { $gte: startDate };
       query.endDate = { $lte: endDate };
     }
+
     const tasks = await db
       .collection("tasks")
       .find(query)
       .sort({ createdAt: -1 })
       .toArray();
-    const userIds = Array.from(new Set(tasks.map((t) => t.userId)));
+    const creatorIds = tasks.map((t) => t.userId);
+    const assignedIds = tasks
+      .flatMap((t) => t.assignedUsers || [])
+      .map((id) => id.toString());
+    const allUserIds = Array.from(new Set([...creatorIds, ...assignedIds]));
     const users = await db
       .collection("users")
-      .find({ _id: { $in: userIds.map((id) => new ObjectId(id)) } })
+      .find({
+        _id: { $in: allUserIds.map((id) => new ObjectId(id)) },
+      })
       .toArray();
 
-    const userMap: Record<string, string> = {};
-    users.forEach((user: any) => {
-      userMap[user._id.toString()] =
-        user.name || user.email || user._id.toString();
+    const userMap: Record<string, any> = {};
+    users.forEach((user) => {
+      userMap[user._id.toString()] = {
+        _id: user._id.toString(),
+        name: user.name || user.email || "Unknown",
+      };
     });
 
-    const tasksWithUserName = tasks.map((task) => ({
+
+    const tasksWithUsers = tasks.map((task) => ({
       ...task,
-      userName: userMap[task.userId] || task.userId,
+      userName: userMap[task.userId]?.name || "Unknown",
+
+      assignedUsers: (task.assignedUsers || []).map((id: any) => {
+        const uid = id.toString();
+        return userMap[uid] || { _id: uid, name: "Unknown" };
+      }),
     }));
 
-    return NextResponse.json({ tasks: tasksWithUserName }, { status: 200 });
+    return NextResponse.json({ tasks: tasksWithUsers }, { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching tasks:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
@@ -71,6 +86,68 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ message: "Task deleted" }, { status: 200 });
   } catch (error) {
     console.error("❌ Error deleting task:", error);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, assignedUsers, deadline } = body;
+
+    if (!name || !assignedUsers || !deadline) {
+      return NextResponse.json(
+        { message: "Name, assigned users, and deadline are required" },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    const result = await db.collection("tasks").insertOne({
+      name,
+      assignedUsers: assignedUsers.map((id: string) => new ObjectId(id)),
+      deadline: new Date(deadline),
+      status: "pending",
+      createdAt: new Date(),
+    });
+
+    const users = await db
+      .collection("users")
+      .find({
+        _id: { $in: assignedUsers.map((id: string) => new ObjectId(id)) },
+      })
+      .project({ _id: 1, name: 1, email: 1 })
+      .toArray();
+
+    for (const user of users) {
+      console.log(`[EMAIL] Sending to: ${user.name} <${user.email}>`);
+      await sendEmail(user.email, `New Task Assigned: ${name}`, {
+        title: "New Task Assigned",
+        message: `Hello ${
+          user.name
+        },<br>You have been assigned a new task: "<strong>${name}</strong>"<br>
+                  Deadline: <strong>${new Date(
+                    deadline
+                  ).toLocaleString()}</strong>`,
+      });
+    }
+
+    const taskWithUsers = {
+      _id: result.insertedId,
+      name,
+      assignedUsers: users.map((u) => ({ _id: u._id, name: u.name })),
+      deadline,
+      status: "pending",
+    };
+
+    return NextResponse.json(
+      { message: "Task created and emails sent", task: taskWithUsers },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error(error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

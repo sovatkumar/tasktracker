@@ -8,11 +8,17 @@ import "react-datepicker/dist/react-datepicker.css";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
 
+type AssignedUser = {
+  _id: string;
+  name: string;
+};
+
 type Task = {
   _id: string;
   name: string;
   userId: string;
   userName?: string;
+  assignedUsers?: AssignedUser[];
   totalTime: number;
   status: string;
   lastStart?: string | null;
@@ -46,18 +52,30 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const allTasks: Task[] = res.data.tasks || [];
+      const allTasks: any = res.data.tasks || [];
       setTasks(allTasks);
 
-      const uniqueUsers = Array.from(
-        new Map(
-          allTasks.map((t) => [
-            t.userId,
-            { id: t.userId, name: t.userName || t.userId },
-          ])
-        ).values()
-      );
-      setUsers(uniqueUsers);
+      // Create unique users list for filter dropdown including assignedUsers and userId
+      const userMap = new Map<string, { id: string; name: string }>();
+
+      allTasks.forEach((task: any) => {
+        // Add assignedUsers
+        task.assignedUsers?.forEach((u: any) => {
+          if (!userMap.has(u._id)) {
+            userMap.set(u._id, { id: u._id, name: u.name });
+          }
+        });
+
+        // Add single userId if not in assignedUsers
+        if (task.userId && !userMap.has(task.userId)) {
+          userMap.set(task.userId, {
+            id: task.userId,
+            name: task.userName || task.userId,
+          });
+        }
+      });
+
+      setUsers(Array.from(userMap.values()));
     } catch (err) {
       console.error("Error fetching tasks:", err);
     }
@@ -125,11 +143,11 @@ export default function AdminDashboard() {
       await axios.post(
         "/api/tasks",
         {
-          userId: task.userId,
-          taskId: task?._id,
+          taskId: task._id,
           name: task.name,
           action: "set-deadline",
           deadline: deadlineDate,
+          assignedUserIds: task.assignedUsers?.map((u) => u._id) || [],
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -144,8 +162,12 @@ export default function AdminDashboard() {
   };
 
   const filteredTasks = tasks.filter((task) => {
-    const matchesUser = selectedUser ? task.userId === selectedUser : true;
+    const matchesUser = selectedUser
+      ? task.assignedUsers?.some((u) => u._id === selectedUser) ||
+        task.userId === selectedUser
+      : true;
 
+    // Filter by date range
     let matchesDate = true;
     if (startDate && endDate && task.endDate) {
       const taskEnd = new Date(task.endDate);
@@ -217,6 +239,7 @@ export default function AdminDashboard() {
           />
         </div>
       </div>
+
       <div className="flex flex-wrap gap-3 mb-4 justify-center">
         {[
           { label: "Completed", color: "bg-green-400", status: "completed" },
@@ -250,11 +273,12 @@ export default function AdminDashboard() {
           Reset Filters
         </button>
       </div>
+
       <div className="overflow-x-auto">
         <table className="w-full border mt-2 min-w-[700px] sm:min-w-0">
           <thead>
             <tr className="bg-gray-100 dark:bg-gray-800 text-sm sm:text-base">
-              <th className="border p-3">User Name</th>
+              <th className="border p-3">Assigned Users</th>
               <th className="border p-3">Task Name</th>
               <th className="border p-3">Status</th>
               <th className="border p-3">Total Time</th>
@@ -294,9 +318,14 @@ export default function AdminDashboard() {
               return (
                 <tr key={task._id} className="border-b text-xs sm:text-sm">
                   <td className="border p-2 text-center">
-                    {task.userName || task.userId}
+                    {task.assignedUsers?.length
+                      ? task.assignedUsers
+                          .map((u) => u.name || u._id)
+                          .join(", ")
+                      : task.userName || task.userId}
                   </td>
-                  <td className="border p-2 text-center ">{task.name}</td>
+
+                  <td className="border p-2 text-center">{task.name}</td>
                   <td
                     className={`border p-2 text-center capitalize ${rowColor}`}
                   >
@@ -390,8 +419,7 @@ export default function AdminDashboard() {
                 </tr>
               );
             })}
-
-            {filteredTasks.length === 0 && (
+             {filteredTasks.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
