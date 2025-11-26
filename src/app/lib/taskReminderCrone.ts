@@ -33,8 +33,17 @@ interface Task {
 async function getAllTasks(): Promise<Task[]> {
   const client = await clientPromise;
   const db = client.db();
-  return db.collection<Task>("tasks").find().toArray();
+
+  // Only fetch tasks with a deadline and not completed
+  return db
+    .collection<Task>("tasks")
+    .find({
+      deadline: { $exists: true },
+      status: { $ne: "completed" },
+    })
+    .toArray();
 }
+
 async function getUserById(userId: string | ObjectId): Promise<User | null> {
   const client = await clientPromise;
   const db = client.db();
@@ -94,10 +103,6 @@ export function startTaskReminderCron() {
         for (const userId of userIds) {
           const usr = await getUserById(userId);
           if (!usr) continue;
-
-          console.log(
-            `[PROCESSING] Task "${task.name}" | Checking for user: ${usr.email}`
-          );
 
           if (!task.reminders[userId]) {
             task.reminders[userId] = {
@@ -170,12 +175,6 @@ export function startTaskReminderCron() {
               r.sentRemindersCount!++;
             }
           }
-
-          console.log(
-            `[NEXT] Task "${task.name}" → next mail for ${usr.email}: ${
-              nextReminderIn ?? "done"
-            }`
-          );
         }
 
         const client = await clientPromise;
@@ -189,7 +188,6 @@ export function startTaskReminderCron() {
       }
 
       console.log(`[CRON] Cycle finished at: ${new Date().toLocaleString()}`);
-      console.log("------------------------------------------------\n");
     } catch (err) {
       console.error("[CRON] Error:", err);
     }
