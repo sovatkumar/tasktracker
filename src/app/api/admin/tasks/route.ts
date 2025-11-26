@@ -48,7 +48,6 @@ export async function GET(req: NextRequest) {
       };
     });
 
-
     const tasksWithUsers = tasks.map((task) => ({
       ...task,
       userName: userMap[task.userId]?.name || "Unknown",
@@ -93,11 +92,11 @@ export async function DELETE(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, assignedUsers, deadline } = body;
+    const { name, assignedUsers, deadline, taskDetail } = body;
 
-    if (!name || !assignedUsers || !deadline) {
+    if (!name || !assignedUsers || !deadline || !taskDetail) {
       return NextResponse.json(
-        { message: "Name, assigned users, and deadline are required" },
+        { message: "Name, assigned users,taskDetail, and deadline are required" },
         { status: 400 }
       );
     }
@@ -107,6 +106,7 @@ export async function POST(req: NextRequest) {
 
     const result = await db.collection("tasks").insertOne({
       name,
+      taskDetail,
       assignedUsers: assignedUsers.map((id: string) => new ObjectId(id)),
       deadline: new Date(deadline),
       status: "pending",
@@ -122,7 +122,6 @@ export async function POST(req: NextRequest) {
       .toArray();
 
     for (const user of users) {
-      console.log(`[EMAIL] Sending to: ${user.name} <${user.email}>`);
       await sendEmail(user.email, `New Task Assigned: ${name}`, {
         title: "New Task Assigned",
         message: `Hello ${

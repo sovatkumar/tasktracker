@@ -18,6 +18,7 @@ type Task = {
   startDate?: string;
   endDate?: string;
   deadline?: string;
+  taskDetail?: any;
 };
 
 type FormData = {
@@ -36,6 +37,7 @@ export default function UserTask() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [startDate, endDate] = dateRange;
+  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 5;
@@ -172,7 +174,7 @@ export default function UserTask() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="max-w-5xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
+    <div className="max-w-6xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
       <h2 className="text-2xl font-bold mb-4 text-center">Task Manager</h2>
 
       <div className="flex flex-wrap gap-4 mb-6 items-center justify-between max-sm:flex-col max-sm:items-stretch">
@@ -246,6 +248,7 @@ export default function UserTask() {
                 <th className="border p-2">Task</th>
                 <th className="border p-2">Status</th>
                 <th className="border p-2">Time</th>
+                <th className="border p-2">Task Detail</th>
                 <th className="border p-2">Start Date</th>
                 <th className="border p-2">End Date</th>
                 <th className="border p-2">Deadline</th>
@@ -266,17 +269,54 @@ export default function UserTask() {
                     }`}
                     title={task.name}
                   >
-                    {task.name?.length > 40
-                      ? task.name.slice(0, 40) + "..."
+                    {task.name?.length > 30
+                      ? task.name.slice(0, 30) + "..."
                       : task.name}
                   </td>
 
                   <td className="border p-2 text-center text-[15px] capitalize">
                     {task.status}
                   </td>
-                  <td className="border p-2 text-center font-medium">
+
+                  <td className="border p-2 text-center font-medium w-[400px]">
                     {formatTime(timerMap[task._id] || 0)}
                   </td>
+                  <td className="border text-center w-2xl cursor-pointer px-2 py-2">
+                    {task.taskDetail ? (
+                      <div className="relative w-full max-w-[220px]">
+                        <p
+                          onClick={() =>
+                            setOpenDetailId(
+                              openDetailId === task._id ? null : task._id
+                            )
+                          }
+                          className="truncate "
+                          title={task?.taskDetail}
+                        >
+                          {String(task.taskDetail).length > 20
+                            ? String(task.taskDetail).slice(0, 20) + "..."
+                            : String(task.taskDetail)}
+                        </p>
+
+                        {openDetailId === task._id && (
+                          <div className="absolute z-50 w-72 p-3 bg-white dark:bg-gray-900 text-sm shadow-xl rounded-lg border left-1/2 -translate-x-1/2 mt-2">
+                            <strong className="block text-gray-700 dark:text-gray-200 mb-1">
+                              Task Details:
+                            </strong>
+
+                            <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                              {typeof task.taskDetail === "object"
+                                ? JSON.stringify(task.taskDetail, null, 2)
+                                : task.taskDetail}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">No details</span>
+                    )}
+                  </td>
+
                   <td className="border p-2 text-center">
                     {task.startDate
                       ? new Date(task.startDate).toLocaleString("en-GB", {

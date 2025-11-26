@@ -18,6 +18,7 @@ type FormData = {
   taskName: string;
   assignedUsers: string[];
   deadline: Date | null;
+  taskDetail?: string;
 };
 
 export default function AdminAddTask() {
@@ -69,6 +70,7 @@ export default function AdminAddTask() {
         name: data.taskName,
         assignedUsers: data.assignedUsers,
         deadline: data.deadline,
+        taskDetail:data?.taskDetail
       });
       toast.success("Task created successfully!");
       reset();
@@ -101,6 +103,21 @@ export default function AdminAddTask() {
           />
           {errors.taskName && (
             <p className="text-red-500 mt-1">{errors.taskName.message}</p>
+          )}
+        </div>
+        <div>
+          <label className="block font-semibold mb-1">
+            Task Description/Detail
+          </label>
+          <textarea
+          rows={6}
+            {...register("taskDetail", { required: "taskDetail is required" })}
+            placeholder="Enter task description"
+            className="w-full border p-2 rounded dark:text-white"
+            disabled={submitting}
+          />
+          {errors.taskDetail && (
+            <p className="text-red-500 mt-1">{errors.taskDetail.message}</p>
           )}
         </div>
         <div>
