@@ -17,6 +17,7 @@ interface UserReminder {
   reminder0?: Date | null;
   reminder1?: Date | null;
   reminder2?: Date | null;
+  createdAt?: any;
 }
 
 interface Task {
@@ -26,14 +27,14 @@ interface Task {
   userId?: string | ObjectId;
   assignedUsers?: (string | ObjectId)[];
   status: string;
-
+  createdAt: any;
   reminders?: Record<string, UserReminder>;
 }
 
 async function getAllTasks(): Promise<Task[]> {
   const client = await clientPromise;
   const db = client.db();
-
+  console.log("[DB] Fetching tasks for reminders...");
   // Only fetch tasks with a deadline and not completed
   return db
     .collection<Task>("tasks")
@@ -156,7 +157,7 @@ export function startTaskReminderCron() {
             else if (timeLeftHours >= 3) gapHours = 3;
 
             const lastKey = `reminder${r.sentRemindersCount}`;
-            const lastReminder = r[lastKey] || task.deadline;
+            const lastReminder = r[lastKey] || task.createdAt;
             const hoursSinceLast =
               (now.getTime() - new Date(lastReminder).getTime()) /
               1000 /
