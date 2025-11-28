@@ -14,9 +14,7 @@ interface UserReminder {
   sent30min?: boolean;
   sentMissed?: boolean;
   sentRemindersCount?: number;
-  reminder0?: Date | null;
-  reminder1?: Date | null;
-  reminder2?: Date | null;
+  lastReminder?: Date | null;
   createdAt?: any;
 }
 
@@ -34,7 +32,7 @@ interface Task {
 async function getAllTasks(): Promise<Task[]> {
   const client = await clientPromise;
   const db = client.db();
-  console.log("[DB] Fetching tasks for reminders... 123");
+  console.log("[DB] Fetching tasks for reminders...");
   return db
     .collection<Task>("tasks")
     .find({
@@ -51,24 +49,23 @@ async function getUserById(userId: string | ObjectId): Promise<User | null> {
     typeof userId === "string"
       ? { _id: new ObjectId(userId) }
       : { _id: userId };
-
   return db.collection<User>("users").findOne(query);
 }
+
 const sendTaskEmail = async (
   usr: User,
   task: Task,
   subject: string,
   messageBody: string
 ) => {
-    console.log(`[SEND EMAIL] → ${usr.email} | Subject: ${subject}`);
-
+  console.log(`[SEND EMAIL] → ${usr.email} | Subject: ${subject}`);
   await sendEmail(usr.email, subject, {
     title: subject,
     message: `Hello ${usr.name}, ${messageBody} "<strong>${
       task.name
     }</strong>" which is due at <strong>${new Date(
       task.deadline
-    ).toLocaleString()}</strong>.`,
+    ).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</strong>.`,
   });
 };
 
@@ -80,9 +77,11 @@ export function startTaskReminderCron() {
 
       for (const task of tasks) {
         if (task.status === "completed") continue;
+
         const deadline = new Date(task.deadline);
         const timeLeftMs = deadline.getTime() - now.getTime();
         const timeLeftHours = timeLeftMs / 1000 / 60 / 60;
+
         const userIdsSet = new Set<string>();
         if (task.userId) userIdsSet.add(task.userId.toString());
         task.assignedUsers?.forEach((u) => userIdsSet.add(u.toString()));
@@ -100,16 +99,15 @@ export function startTaskReminderCron() {
               sent30min: false,
               sentMissed: false,
               sentRemindersCount: 0,
-              reminder0: null,
-              reminder1: null,
-              reminder2: null,
+              lastReminder: null,
               createdAt: task.createdAt,
             };
           }
 
           const r: any = task.reminders[userId];
 
-          if (timeLeftMs <= 0 && !r.sentMissed) {
+          // Missed deadline email
+          if (timeLeftMs < 0 && !r.sentMissed) {
             await sendTaskEmail(
               usr,
               task,
@@ -119,7 +117,9 @@ export function startTaskReminderCron() {
             r.sentMissed = true;
           }
 
+          // 1 hour remaining
           if (timeLeftHours <= 1 && timeLeftHours > 0 && !r.sent1hr) {
+            if (timeLeftHours > 1) {
             await sendTaskEmail(
               usr,
               task,
@@ -128,7 +128,9 @@ export function startTaskReminderCron() {
             );
             r.sent1hr = true;
           }
+          }
 
+          // 30 minutes remaining
           if (timeLeftHours <= 0.5 && timeLeftHours > 0 && !r.sent30min) {
             await sendTaskEmail(
               usr,
@@ -139,30 +141,61 @@ export function startTaskReminderCron() {
             r.sent30min = true;
           }
 
+          // Next reminders (periodic)
           if (timeLeftHours > 1 && r.sentRemindersCount! < 3) {
-            let gapHours = 1;
-            if (timeLeftHours >= 24) gapHours = 8;
-            else if (timeLeftHours >= 3) gapHours = 3;
-
-            const lastKey = `reminder${r.sentRemindersCount}`;
-            const lastReminder = r[lastKey] || task.createdAt;
-            const hoursSinceLast =
-              (now.getTime() - new Date(lastReminder).getTime()) /
+            const taskDurationHours =
+              (deadline.getTime() - new Date(task.createdAt).getTime()) /
               1000 /
               60 /
               60;
 
-            if (hoursSinceLast >= gapHours) {
+            let gapHours = 1;
+            if (taskDurationHours >= 24) gapHours = 8;
+            else if (taskDurationHours >= 3) gapHours = 3;
+
+            const lastReminderTime = r.lastReminder
+              ? new Date(r.lastReminder)
+              : new Date(task.createdAt);
+
+            const nextReminderTime = new Date(
+              lastReminderTime.getTime() + gapHours * 60 * 60 * 1000
+            );
+
+            console.log(
+              `[NEXT REMINDER] Task: "${task.name}" for ${
+                usr.name
+              } | createdAt: ${new Date(task.createdAt).toLocaleString(
+                "en-IN",
+                {
+                  timeZone: "Asia/Kolkata",
+                }
+              )} | lastReminder: ${lastReminderTime.toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+              })} | nextReminder: ${nextReminderTime.toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+              })} | gapHours: ${gapHours}`
+            );
+
+            // Only send next reminder if nextReminderTime is before deadline
+            if (nextReminderTime < deadline && now >= nextReminderTime) {
               await sendTaskEmail(
                 usr,
                 task,
                 "Task Due Reminder",
-                `Task due is close at ${new Date(
-                  task.deadline
-                ).toLocaleString()}`
+                `Task due is near in more than ${gapHours} hours for task`
               );
-              r[lastKey] = now;
+              r.lastReminder = now;
               r.sentRemindersCount!++;
+            } else if (nextReminderTime >= deadline) {
+              console.log(
+                `[SKIP REMINDER] Task: "${task.name}" for ${
+                  usr.name
+                } | nextReminder ${nextReminderTime.toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                })} exceeds deadline ${deadline.toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                })}`
+              );
             }
           }
         }

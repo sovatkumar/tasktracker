@@ -384,7 +384,7 @@ export default function AdminDashboard() {
                             const hasTime =
                               selectedDate.getHours() !== 0 ||
                               selectedDate.getMinutes() !== 0;
-                            if (!hasTime) selectedDate.setHours(17, 0, 0, 0);
+                            if (!hasTime) selectedDate.setHours(19, 0, 0, 0);
 
                             setDeadlinePicker((prev: any) => ({
                               ...prev,
@@ -419,7 +419,7 @@ export default function AdminDashboard() {
                 </tr>
               );
             })}
-             {filteredTasks.length === 0 && (
+            {filteredTasks.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
