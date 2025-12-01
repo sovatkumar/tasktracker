@@ -47,16 +47,21 @@ export async function GET(req: NextRequest) {
         name: user.name || user.email || "Unknown",
       };
     });
-
-    const tasksWithUsers = tasks.map((task) => ({
-      ...task,
-      userName: userMap[task.userId]?.name || "Unknown",
-
-      assignedUsers: (task.assignedUsers || []).map((id: any) => {
-        const uid = id.toString();
-        return userMap[uid] || { _id: uid, name: "Unknown" };
-      }),
-    }));
+    const tasksWithUsers = tasks.map((task) => {
+      const firstAssignedUserId = task.assignedUsers?.[0]?.toString();
+      return {
+        ...task,
+        userName:
+          userMap[task.userId]?.name ||
+          (firstAssignedUserId
+            ? userMap[firstAssignedUserId]?.name
+            : "Unknown"),
+        assignedUsers: (task.assignedUsers || []).map((id: any) => {
+          const uid = id.toString();
+          return userMap[uid] || { _id: uid, name: "Unknown" };
+        }),
+      };
+    });
 
     return NextResponse.json({ tasks: tasksWithUsers }, { status: 200 });
   } catch (error) {
@@ -96,7 +101,9 @@ export async function POST(req: NextRequest) {
 
     if (!name || !assignedUsers || !deadline || !taskDetail) {
       return NextResponse.json(
-        { message: "Name, assigned users,taskDetail, and deadline are required" },
+        {
+          message: "Name, assigned users,taskDetail, and deadline are required",
+        },
         { status: 400 }
       );
     }

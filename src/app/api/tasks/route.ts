@@ -105,7 +105,6 @@ export async function POST(req: NextRequest) {
           assignedUsers: assignedUserIds || [],
         };
         const { insertedId } = await tasks.insertOne(insertTask);
-        console.log("Created new task:", insertTask);
         return NextResponse.json({ taskId: insertedId, task: insertTask });
 
       case "start":
@@ -124,7 +123,6 @@ export async function POST(req: NextRequest) {
         }
 
         await tasks.updateOne(filter, { $set: updateData });
-        console.log("Task started:", updateData);
         break;
 
       case "stop":
@@ -205,7 +203,6 @@ export async function POST(req: NextRequest) {
             },
           }
         );
-        console.log("Task completed:", { total, dailyLogsComp });
         break;
       case "set-deadline":
         if (!taskId || !deadline)
@@ -222,10 +219,9 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
 
-        console.log("Updating deadline for task:", task);
-
         const oldDeadline = task.deadline;
         const newDeadline = new Date(deadline);
+        const currentUpdatedDate = new Date();
         const updateFields: any = { deadline: newDeadline };
         if (
           assignedUserIds &&
@@ -236,15 +232,23 @@ export async function POST(req: NextRequest) {
             (id: string) => new ObjectId(id)
           );
         }
-
+        const unsetFields: any = {};
+        const userIds = Object.keys(task.reminders || {});
+        for (const userId of userIds) {
+          unsetFields[`reminders.${userId}.sent1hr`] = false;
+          unsetFields[`reminders.${userId}.sent30min`] = false;
+          unsetFields[`reminders.${userId}.sentMissed`] = false;
+          unsetFields[`reminders.${userId}.sentRemindersCount`] = 0;
+          unsetFields[`reminders.${userId}.lastReminder`] = currentUpdatedDate;
+        }
         await tasks.updateOne(
           { _id: new ObjectId(taskId) },
-          { $set: updateFields }
-        );
-
-        console.log(
-          "Task updated with new deadline and assigned users:",
-          updateFields
+          {
+            $set: {
+              ...updateFields,
+              ...unsetFields,
+            },
+          }
         );
         const isUpdate = !!oldDeadline;
 
@@ -269,11 +273,6 @@ export async function POST(req: NextRequest) {
           seen.add(u._id.toString());
           return true;
         });
-
-        console.log(
-          "Sending emails to users:",
-          allUsers.map((u) => u.email)
-        );
 
         for (const usr of allUsers) {
           await sendEmail(
@@ -309,3 +308,11 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// await db.collection("tasks").updateOne(
+//   { _id: taskId },
+//   {
+//     $set: { deadline: newDeadline },
+//     $unset: { reminders: "" }
+//   }
+// );

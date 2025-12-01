@@ -32,7 +32,7 @@ interface Task {
 async function getAllTasks(): Promise<Task[]> {
   const client = await clientPromise;
   const db = client.db();
-  console.log("[DB] Fetching tasks for reminders...");
+  console.log("[DB] Fetching tasks for reminders......");
   return db
     .collection<Task>("tasks")
     .find({
@@ -118,8 +118,7 @@ export function startTaskReminderCron() {
           }
 
           // 1 hour remaining
-          if (timeLeftHours <= 1 && timeLeftHours > 0 && !r.sent1hr) {
-            if (timeLeftHours > 1) {
+          if (timeLeftHours <= 1.01 && timeLeftHours > 0 && !r.sent1hr) {
             await sendTaskEmail(
               usr,
               task,
@@ -127,7 +126,6 @@ export function startTaskReminderCron() {
               "only 1 hour left for task"
             );
             r.sent1hr = true;
-          }
           }
 
           // 30 minutes remaining
