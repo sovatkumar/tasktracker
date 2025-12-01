@@ -173,6 +173,11 @@ export default function UserTask() {
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
+  const missedDeadlineTasks = filteredTasks.filter(
+    (task): task is Task & { deadline: string } => {
+      return !!task.deadline && new Date(task.deadline) < new Date();
+    }
+  );
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6 border rounded-2xl shadow-lg bg-white dark:bg-gray-900 dark:text-white">
       <h2 className="text-2xl font-bold mb-4 text-center">Task Manager</h2>
@@ -236,10 +241,12 @@ export default function UserTask() {
       {errors.taskName && (
         <p className="text-red-500 mb-2">{errors.taskName.message}</p>
       )}
-      <div className="flex items-center justify-center gap-2 cursor-pointer pb-2 px-2 py-1 rounded-md text-sm">
-        <span className={`w-3 h-3 bg-red-500 rounded-full`}></span>
-        <span className="font-medium">Missed Deadline</span>
-      </div>
+      {missedDeadlineTasks?.length > 0 && (
+        <div className="flex items-center justify-center gap-2 cursor-pointer pb-2 px-2 py-1 rounded-md text-sm">
+          <span className={`w-3 h-3 bg-red-500 rounded-full`}></span>
+          <span className="font-medium">Missed Deadline</span>
+        </div>
+      )}
       <div className="overflow-x-auto">
         {currentTasks.length > 0 ? (
           <table className="w-full border text-sm sm:text-base">
