@@ -378,6 +378,11 @@ export default function AdminDashboard() {
                             ? new Date(task.deadline)
                             : null
                         }
+                        minDate={
+                          task.deadline && task.startDate
+                            ? new Date(task.startDate)
+                            : new Date()
+                        }
                         onChange={(date: Date | null) => {
                           if (date) {
                             const selectedDate = new Date(date);
