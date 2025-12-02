@@ -179,8 +179,7 @@ export default function AdminDashboard() {
     const matchesStatus = selectedStatus
       ? selectedStatus === "missed"
         ? task.deadline &&
-          new Date(task.deadline) < new Date() &&
-          task.status !== "completed"
+          new Date(task.deadline) < new Date() 
         : task.status === selectedStatus
       : true;
 
@@ -296,8 +295,7 @@ export default function AdminDashboard() {
                 : undefined;
               const isOverdue =
                 deadlineDate &&
-                deadlineDate.getTime() < now.getTime() &&
-                task.status !== "completed";
+                deadlineDate.getTime() < now.getTime()
 
               let rowColor = "";
               if (isOverdue) rowColor = "bg-red-500 text-white";
