@@ -171,8 +171,9 @@ export default function AdminAddTask() {
                 className="w-full border p-2 rounded dark:text-white"
                 disabled={submitting}
                 showTimeSelect
-                timeIntervals={5} // minute interval options (5, 10, 15 etc.)
-                dateFormat="MMM d, yyyy h:mm aa" // display format
+                minDate={new Date()}
+                timeIntervals={5}
+                dateFormat="MMM d, yyyy h:mm aa"
               />
             )}
           />

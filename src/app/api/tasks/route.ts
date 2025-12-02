@@ -308,11 +308,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-// await db.collection("tasks").updateOne(
-//   { _id: taskId },
-//   {
-//     $set: { deadline: newDeadline },
-//     $unset: { reminders: "" }
-//   }
-// );
