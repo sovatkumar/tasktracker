@@ -269,8 +269,10 @@ export default function UserTask() {
                     className={`border blorder-black p-2 text-left truncate max-w-xs ${
                       task.deadline &&
                       new Date(task.deadline).getTime() <
-                        new Date().getTime() && "bg-red-500 text-white border border-black dark:border-white"
-                        
+                        new Date().getTime() &&
+                      task.status !== "completed"
+                        ? "bg-red-500 text-white border border-black dark:border-white"
+                        : ""
                     }`}
                     title={task.name}
                   >

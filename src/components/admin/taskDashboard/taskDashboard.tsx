@@ -295,7 +295,8 @@ export default function AdminDashboard() {
                 : undefined;
               const isOverdue =
                 deadlineDate &&
-                deadlineDate.getTime() < now.getTime()
+                deadlineDate.getTime() < now.getTime() &&
+                task.status !== "completed";
 
               let rowColor = "";
               if (isOverdue) rowColor = "bg-red-500 text-white";
