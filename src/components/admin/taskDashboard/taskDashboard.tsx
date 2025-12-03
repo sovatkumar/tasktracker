@@ -178,8 +178,7 @@ export default function AdminDashboard() {
 
     const matchesStatus = selectedStatus
       ? selectedStatus === "missed"
-        ? task.deadline &&
-          new Date(task.deadline) < new Date() 
+        ? task.deadline && new Date(task.deadline) < new Date()
         : task.status === selectedStatus
       : true;
 
@@ -377,11 +376,7 @@ export default function AdminDashboard() {
                             ? new Date(task.deadline)
                             : null
                         }
-                        minDate={
-                          task.deadline && task.startDate
-                            ? new Date(task.startDate)
-                            : new Date()
-                        }
+                        minDate={new Date()}
                         onChange={(date: Date | null) => {
                           if (date) {
                             const selectedDate = new Date(date);
