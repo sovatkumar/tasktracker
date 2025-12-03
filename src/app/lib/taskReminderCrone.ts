@@ -70,7 +70,7 @@ const sendTaskEmail = async (
 };
 
 export function startTaskReminderCron() {
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("*/1 * * * *", async () => {
     try {
       const now = new Date();
       const tasks = await getAllTasks();

@@ -1,6 +1,6 @@
 import * as nodemailer from "nodemailer";
-const MAIL_USER = "sachin.misterskinfotech@gmail.com";
-const MAIL_PASS = "oqpb eawb bzlx onih";
+const MAIL_USER = "vinaykumar.mrski@gmail.com";
+const MAIL_PASS = "xrfk knpe ciwf akrs";
 export async function sendEmail(
   to: string,
   subject: string,
@@ -43,6 +43,7 @@ export async function sendEmail(
       </div>
     `;
 
+    // console.log(`Attempting to send email to: ${to} | Subject: ${subject}`);
 
     const info = await transporter.sendMail({
       from: `<${process.env.MAIL_USER}>`,
@@ -51,6 +52,7 @@ export async function sendEmail(
       html,
     });
 
+    // console.log("Email sent successfully:", info.response);
   } catch (error) {
     console.error("Failed to send email:", error);
   }

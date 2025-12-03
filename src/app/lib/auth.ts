@@ -3,15 +3,15 @@ import jwt from "jsonwebtoken";
 
 const SECRET: any = process.env.JWT_SECRET;
 
-export function authorize(req: NextRequest, requiredRole: "admin" | "user") {
+export function authorize(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return false;
+  if (!authHeader) return null;
 
   const token = authHeader.replace("Bearer ", "");
   try {
-    const decoded: any = jwt.verify(token, SECRET);
-    return decoded.role === requiredRole;
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    return decoded; // return full user info
   } catch (err) {
-    return false;
+    return null;
   }
 }

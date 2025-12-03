@@ -2,19 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import { sendEmail } from "@/app/lib/sendEmail";
+import { authorize } from "@/app/lib/auth";
 
 export async function GET(req: NextRequest) {
+  const tenantDB = authorize(req)
+
   const userId = req.nextUrl.searchParams.get("userId");
   const startDate = req.nextUrl.searchParams.get("startDate");
   const endDate = req.nextUrl.searchParams.get("endDate");
   const search = req.nextUrl.searchParams.get("search");
-
   if (!userId)
     return NextResponse.json({ message: "User ID missing" }, { status: 400 });
-
+  
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const tenant = tenantDB?.tenantDB;
+    const db = client.db(tenant);
 
     const userObjectId = new ObjectId(userId);
     const query: any = {
@@ -57,6 +60,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantDB = authorize(req)
+  console.log(tenantDB,"reqFromTasl")
+  
   const {
     userId,
     name,
@@ -76,7 +82,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const tenant = tenantDB?.tenantDB;
+    const db = client.db(tenant);
     const tasks = db.collection("tasks");
     const users = db.collection("users");
 

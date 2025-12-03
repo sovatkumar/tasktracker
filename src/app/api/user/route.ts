@@ -5,6 +5,7 @@ import { authorize } from "@/app/lib/auth";
 import { ObjectId } from "mongodb";
 
 export async function POST(req: NextRequest) {
+  const tenantDB = authorize(req);
   try {
     const body = await req.json();
     const { name, email, password, role } = body;
@@ -15,9 +16,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
+    const tenant = tenantDB?.tenantDB;
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(tenant);
 
     const existingUser = await db.collection("users").findOne({ email });
     if (existingUser) {
@@ -48,12 +49,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!authorize(req, "admin")) {
+  const user = authorize(req);
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
 
     const users = await db.collection("users").find().toArray();
     return NextResponse.json(users);
@@ -64,13 +66,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!authorize(req, "admin")) {
+  const user = authorize(req);
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId");
 
@@ -102,7 +105,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!authorize(req, "admin")) {
+  const user = authorize(req);
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -118,7 +122,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
     const existingUser = await db.collection("users").findOne({
       email,
       _id: { $ne: new ObjectId(userId) },

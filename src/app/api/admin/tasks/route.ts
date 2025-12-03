@@ -4,13 +4,14 @@ import { authorize } from "../../../lib/auth";
 import { ObjectId } from "mongodb";
 import { sendEmail } from "@/app/lib/sendEmail";
 export async function GET(req: NextRequest) {
-  if (!authorize(req, "admin")) {
+  const user = authorize(req);
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
     const url = new URL(req.url);
     const startParam = url.searchParams.get("start");
     const endParam = url.searchParams.get("end");
@@ -71,13 +72,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!authorize(req, "admin")) {
+  const tenantDB = authorize(req);
+  console.log(tenantDB, "reqFromTasl");
+  const user = authorize(req);
+  if (!user || user.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
     const url = new URL(req.url);
     const taskId = url.searchParams.get("taskId");
     if (!taskId) {
@@ -95,6 +99,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const user = authorize(req);
+
   try {
     const body = await req.json();
     const { name, assignedUsers, deadline, taskDetail } = body;
@@ -109,7 +115,7 @@ export async function POST(req: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(user.tenantDB);
 
     const result = await db.collection("tasks").insertOne({
       name,

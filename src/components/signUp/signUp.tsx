@@ -5,6 +5,7 @@ import axios from "axios";
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { Eye, EyeOff } from "lucide-react";
+import Cookies from "js-cookie";
 
 type SignupFormInputs = {
   name: string;
@@ -23,12 +24,13 @@ export default function SignupForm() {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const token = Cookies.get("token");
 
   const onSubmit = async (data: SignupFormInputs) => {
     setLoading(true);
 
     try {
-      await axios.post("/api/user", data);
+      await axios.post("/api/user", data,{headers:{Authorization: `Bearer ${token}`}});
       toast.success("User created successfully!");
       reset();
     } catch (error: any) {

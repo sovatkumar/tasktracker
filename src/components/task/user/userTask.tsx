@@ -70,7 +70,7 @@ export default function UserTask() {
       const params: any = { userId };
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
-      const res = await axios.get("/api/tasks", { params });
+      const res = await axios.get("/api/tasks", { params,headers:{Authorization: `Bearer ${Cookies.get("token")}`} });
       setTasks(res.data.tasks || []);
       setCurrentPage(1);
     } catch (err) {
@@ -128,7 +128,9 @@ export default function UserTask() {
         payload.endDate = now;
       }
 
-      await axios.post("/api/tasks", payload);
+      await axios.post("/api/tasks", payload, {
+        headers: { Authorization: `Bearer ${Cookies.get("token")}` },
+      });
       fetchTasks();
     } catch (err: any) {
       console.error(err);
