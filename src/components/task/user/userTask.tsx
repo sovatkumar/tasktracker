@@ -266,14 +266,24 @@ export default function UserTask() {
               {currentTasks.map((task) => (
                 <tr key={task._id}>
                   <td
-                    className={`border blorder-black p-2 text-left truncate max-w-xs ${
-                      task.deadline &&
-                      new Date(task.deadline).getTime() <
-                        new Date().getTime() &&
-                      task.status !== "completed"
+                    className={`border blorder-black p-2 text-left truncate max-w-xs ${(() => {
+                      const deadline = task.deadline
+                        ? new Date(task.deadline)
+                        : null;
+                      const endDate = task.endDate
+                        ? new Date(task.endDate)
+                        : null;
+
+                      if (!deadline) return "";
+
+                      const missed =
+                        (endDate && endDate > deadline) ||
+                        (!endDate && new Date() > deadline);
+
+                      return missed
                         ? "bg-red-500 text-white border border-black dark:border-white"
-                        : ""
-                    }`}
+                        : "";
+                    })()}`}
                     title={task.name}
                   >
                     {task.name?.length > 30

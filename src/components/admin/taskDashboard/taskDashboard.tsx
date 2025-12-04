@@ -178,7 +178,9 @@ export default function AdminDashboard() {
 
     const matchesStatus = selectedStatus
       ? selectedStatus === "missed"
-        ? task.deadline && new Date(task.deadline) < new Date()
+        ? task.deadline &&
+          ((task.endDate && new Date(task.endDate) > new Date(task.deadline)) ||
+            (!task.endDate && new Date() > new Date(task.deadline)))
         : task.status === selectedStatus
       : true;
 
@@ -289,13 +291,15 @@ export default function AdminDashboard() {
           <tbody>
             {paginatedTasks.map((task) => {
               const now = new Date();
+              const endDate = task.endDate ? new Date(task.endDate) : null;
               const deadlineDate = task.deadline
                 ? new Date(task.deadline)
-                : undefined;
+                : null;
+
               const isOverdue =
                 deadlineDate &&
-                deadlineDate.getTime() < now.getTime() &&
-                task.status !== "completed";
+                ((endDate && endDate > deadlineDate) ||
+                  (!endDate && new Date() > deadlineDate));
 
               let rowColor = "";
               if (isOverdue) rowColor = "bg-red-500 text-white";
