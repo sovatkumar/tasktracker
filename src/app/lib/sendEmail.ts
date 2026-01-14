@@ -1,6 +1,6 @@
 import * as nodemailer from "nodemailer";
-const MAIL_USER = "sachin.misterskinfotech@gmail.com";
-const MAIL_PASS = "oqpb eawb bzlx onih";
+const MAIL_USER = "vinaykumar.mrski@gmail.com";
+const MAIL_PASS = "xrfk knpe ciwf akrs";
 export async function sendEmail(
   to: string,
   subject: string,
